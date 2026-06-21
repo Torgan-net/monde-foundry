@@ -1,0 +1,1676 @@
+{
+  "name": "Maria Sotto",
+  "type": "character",
+  "img": "Cobra/Persos/Maria%20Sotto.jpg",
+  "items": [
+    {
+      "_id": "6nZk5RtWVTtyotyQ",
+      "name": "Persuasion",
+      "type": "skill",
+      "img": "systems/swade/assets/icons/skills/convince.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "swadesfxvfx": {
+          "animationTemplate": "",
+          "animationDelay": "",
+          "audioTemplate": "",
+          "audioDelay": ""
+        },
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\">\n<p>Persuasion is the ability to convince others to do what you want through reason, cajoling, deception, rewards, or other friendly means. Persuasion isn&rsquo;t mind control. It can change someone&rsquo;s attitude but not their goals. A bandit may let you keep a sentimental piece of jewelry with a good Persuasion roll but still takes all your other goods.</p>\n<p>When used to @Compendium[swade-core-rules.swade-rules.Support]{Support} allies it&rsquo;s an unopposed roll. If the target is resistant, it&rsquo;s an @JournalEntry[JBxsGv2wAoAmoCDe]{opposed} roll vs. the target&rsquo;s @Compendium[swade-core-rules.swade-rules.Traits]{Spirit}. The GM should modify the roll as she sees fit based on roleplaying, any pertinent @Compendium[swade-core-rules.swade-rules.Edges]{Edges} or @Compendium[swade-core-rules.swade-rules.Hindrances]{Hindrances} that affect the conversation, and the circumstances.</p>\n<p><strong>Reaction Level:</strong> How much a person is willing to cooperate depends largely on their attitude toward whoever&rsquo;s talking to them. The Game Master can decide how nonplayer characters feel based on the setting, or roll on the @Compendium[swade-core-rules.swade-tables.Reaction Table]{Reaction Table} if she has no preconceived notions.</p>\n<p>@Compendium[swade-core-rules.swade-rules.Trait Rolls]{Success} improves the target&rsquo;s attitude one level and a raise improves it two. Further increases aren&rsquo;t generally possible in the same encounter&mdash;it takes individuals a little time to adjust their biases.</p>\n<p>@Compendium[swade-core-rules.swade-rules.Trait Rolls]{Failure} means the target won&rsquo;t change his mind this scene or until the situation changes in some important way. A @Compendium[swade-core-rules.swade-rules.Trait Rolls]{Critical Failure} also <em>reduces</em> the target&rsquo;s attitude two levels.</p>\n<p>Only one roll should generally be allowed per interaction unless new information is revealed, a substantial reward is offered, etc.</p>\n<p><strong>Networking: </strong>Characters can also use Persuasion as a &ldquo;macro skill,&rdquo; simulating a few hours or an evening&rsquo;s time hobnobbing and socializing to gain favors or information. See @Compendium[swade-core-rules.swade-rules.Networking]{Networking}.</p>\n</div>",
+        "notes": "",
+        "additionalStats": {},
+        "attribute": "spirit",
+        "isCoreSkill": true,
+        "die": {
+          "sides": 8,
+          "modifier": 2
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "source": "",
+        "swid": "persuasion",
+        "choiceSets": []
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194830,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "J4EFfhcWWdfEyvNr",
+      "name": "Athletics",
+      "type": "skill",
+      "img": "systems/swade/assets/icons/skills/jump-across.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "swadesfxvfx": {
+          "animationTemplate": "",
+          "animationDelay": "",
+          "audioTemplate": "",
+          "audioDelay": ""
+        },
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\">\n<p>Athletics combines an individual&rsquo;s coordin&shy;ation with learned skills such as climbing, jumping, balancing, biking, wrestling, skiing, swimming, throwing, or catching. Characters who rely on physical power more than coordination can take the @Compendium[swade-core-rules.swade-edges.Brute]{Brute} Edge to link this skill to @Compendium[swade-core-rules.swade-rules.Traits]{Strength} instead of @Compendium[swade-core-rules.swade-rules.Traits]{Agility}.</p>\n</div>",
+        "notes": "",
+        "additionalStats": {},
+        "attribute": "agility",
+        "isCoreSkill": true,
+        "die": {
+          "sides": 6,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "source": "",
+        "swid": "athletics",
+        "choiceSets": []
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194836,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "K9DGGRz3slZrfuaM",
+      "name": "Notice",
+      "type": "skill",
+      "img": "systems/swade/assets/icons/skills/psychic-waves.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "swadesfxvfx": {
+          "animationTemplate": "",
+          "animationDelay": "",
+          "audioTemplate": "",
+          "audioDelay": ""
+        },
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\">\n<p>Notice is a hero&rsquo;s general awareness and alertness. It&rsquo;s used to sense sights, sounds, tastes, and smells, spot clues, detect ambushes, spot hidden weapons on a foe, or tell if a rival is lying, frightened, happy, etc.</p>\n<p>@Compendium[swade-core-rules.swade-rules.Trait Rolls]{Success} conveys basic information&mdash;the character hears movement in the forest, smells distant smoke, or senses someone isn&rsquo;t being completely truthful.</p>\n<p>A @Compendium[swade-core-rules.swade-rules.Trait Rolls]{raise} grants more detail, such as the direction of a sound or odor or what topic a person is avoiding or lying about.</p>\n</div>",
+        "notes": "",
+        "additionalStats": {},
+        "attribute": "smarts",
+        "isCoreSkill": true,
+        "die": {
+          "sides": 6,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "source": "",
+        "swid": "notice",
+        "choiceSets": []
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194843,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "SX7GnSciG0pvzcRu",
+      "name": "Stealth",
+      "type": "skill",
+      "img": "systems/swade/assets/icons/skills/hidden.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\">\n<p>Stealth is the ability to hide and move quietly. A simple @Compendium[swade-core-rules.swade-rules.Trait Rolls]{success} on a Stealth roll means the character avoids detection if enemies aren&rsquo;t particularly alert. If the character @Compendium[swade-core-rules.swade-rules.Trait Rolls]{fails} the roll, the enemy realizes something is amiss and begins actively searching for whatever roused them.</p>\n<p>Once foes are alerted and active, Stealth is opposed by @Compendium[swade-core-rules.swade-skills.Notice]{Notice} (a @Compendium[swade-core-rules.swade-rules.Trait Rolls]{group roll} if there are many foes.</p>\n<p>The GM should apply any circumstantial penalties to @Compendium[swade-core-rules.swade-skills.Notice]{Notice} rolls for @Compendium[swade-core-rules.swade-rules.Illumination]{darkness}, @Compendium[swade-core-rules.swade-rules.Cover and Obstacles]{cover}, noise, distractions, and any difference in the target&rsquo;s @Compendium[swade-core-rules.swade-rules.Size and Scale]{Scale} (just like when attacking). Sneaking through dry leaves might subtract 2 from the Stealth roll, for example, while spotting someone in the dark uses the @Compendium[swade-core-rules.swade-rules.Illumination]{Illumination} penalty (&minus;4). Don&rsquo;t apply the same modifier to both rolls, however. If Stealth is at &minus;2 for the leaves, don&rsquo;t give Notice a +2 for them as well.</p>\n<p><strong>Sneak Attack: </strong> Sneaking up close enough to make a melee attack <em>always</em> requires an @Compendium[swade-core-rules.swade-rules.Trait Rolls]{opposed} Stealth roll versus the target&rsquo;s @Compendium[swade-core-rules.swade-skills.Notice]{Notice}, whether the guard is actively looking for trouble or not. If successful, the victim is @Compendium[swade-core-rules.swade-rules.Distracted and Vulnerable]{Vulnerable} to the attacker, but only until the attacker&rsquo;s turn ends. With a raise, the attacker has @Compendium[swade-core-rules.swade-rules.The Drop]{The Drop} instead.</p>\n<p><strong>Movement:</strong> In combat, characters roll Stealth each turn as a @Compendium[swade-core-rules.swade-rules.Actions]{free action} at the end of their move or any action the GM thinks might draw attention.</p>\n<p>Out of combat, the distance moved depends entirely on the situation. The GM might want a roll every minute if the group is sneaking around the perimeter of a defensive position, or every few miles if they&rsquo;re trying to quietly walk the path through a dark forest without alerting the creatures that live there.</p>\n</div>",
+        "notes": "",
+        "additionalStats": {},
+        "attribute": "agility",
+        "isCoreSkill": true,
+        "die": {
+          "sides": 4,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "source": "",
+        "swid": "stealth",
+        "choiceSets": []
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194849,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "T6rr0LHgpBl1nfTa",
+      "name": "Common Knowledge",
+      "type": "skill",
+      "img": "systems/swade/assets/icons/skills/gift-of-knowledge.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\"><p>Characters roll Common Knowledge to know people, places, and things of their world, including etiquette, geography, culture, popular technology, contacts, and customs.</p></div>",
+        "notes": "",
+        "additionalStats": {},
+        "attribute": "smarts",
+        "isCoreSkill": true,
+        "die": {
+          "sides": 4,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "source": "",
+        "swid": "common-knowledge",
+        "choiceSets": []
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194855,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": null,
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "yS3EkX8k14MC6kcM",
+      "name": "Anemic",
+      "type": "hindrance",
+      "img": "systems/swade/assets/icons/hindrance.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "cf": {
+          "id": "temp_paujlrjlvl",
+          "path": "Hindrances",
+          "color": "#8c160f"
+        },
+        "core": {},
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\">\n<p><span class=\"fontstyle0\">Anemic characters are particularly susceptible to sickness, disease, environmental effects, and fatigue. They subtract 2 from @Compendium[swade-core-rules.swade-rules.Traits]{Vigor} rolls made to resist @Compendium[swade-core-rules.swade-rules.Fatigue]{Fatigue} (see </span><span class=\"fontstyle2\">@Compendium[swade-core-rules.swade-rules.Hazards]{Hazards}</span><span class=\"fontstyle0\">).</span></p>\n</div>",
+        "notes": "",
+        "additionalStats": {},
+        "favorite": false,
+        "major": false,
+        "grants": [],
+        "source": "",
+        "swid": "anemic",
+        "choiceSets": [],
+        "charges": {
+          "hasCharges": false,
+          "charges": {
+            "4aPAnxCd": {
+              "id": "4aPAnxCd",
+              "sort": 0,
+              "name": "Charges",
+              "value": 1,
+              "max": 1,
+              "rechargeType": "finite"
+            }
+          }
+        },
+        "severity": "either"
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194861,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Compendium.swade-core-rules.swade-hindrances.GX7uBTENpct7CyYl",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "ry1Rg23YXK4YQBTl",
+      "name": "Big Mouth",
+      "type": "hindrance",
+      "img": "systems/swade/assets/icons/hindrance.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "cf": {
+          "id": "temp_paujlrjlvl",
+          "path": "Hindrances",
+          "color": "#8c160f"
+        },
+        "core": {},
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\"><p><span class=\"fontstyle0\">Loose lips sink ships, the saying goes. This hero&rsquo;s mouth could drown an armada. The blabbermouth can&rsquo;t keep a secret very well. He reveals plans and gives away things best kept among friends, usually at the worst possible times</span></p></div>",
+        "notes": "",
+        "additionalStats": {},
+        "favorite": false,
+        "major": false,
+        "grants": [],
+        "source": "",
+        "swid": "big-mouth",
+        "choiceSets": [],
+        "charges": {
+          "hasCharges": false,
+          "charges": {
+            "yAM2pkkv": {
+              "id": "yAM2pkkv",
+              "sort": 0,
+              "name": "Charges",
+              "value": 1,
+              "max": 1,
+              "rechargeType": "finite"
+            }
+          }
+        },
+        "severity": "either"
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194868,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Compendium.swade-core-rules.swade-hindrances.IEQGIW5zKUpo0Zjk",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "f2KY7czk88dDZ4n6",
+      "name": "Curious",
+      "type": "hindrance",
+      "img": "systems/swade/assets/icons/hindrance.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "cf": {
+          "id": "temp_paujlrjlvl",
+          "path": "Hindrances",
+          "color": "#8c160f"
+        },
+        "core": {},
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\"><p><span class=\"fontstyle0\">It killed the cat, and it might kill your warrior as well. Curious characters have to check out everything and always want to know what&rsquo;s behind a potential mystery or secret.</span></p></div>",
+        "notes": "",
+        "additionalStats": {},
+        "favorite": false,
+        "major": true,
+        "grants": [],
+        "source": "",
+        "swid": "curious",
+        "choiceSets": [],
+        "charges": {
+          "hasCharges": false,
+          "charges": {
+            "t50YMSzX": {
+              "id": "t50YMSzX",
+              "sort": 0,
+              "name": "Charges",
+              "value": 1,
+              "max": 1,
+              "rechargeType": "finite"
+            }
+          }
+        },
+        "severity": "either"
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194874,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Compendium.swade-core-rules.swade-hindrances.GULnKHGQlhgqZ7Hn",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "worwAtcXm5XEuCMJ",
+      "name": "Fighting",
+      "type": "skill",
+      "img": "systems/swade/assets/icons/skills/punch.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "cf": {
+          "id": "temp_qals24wpyph",
+          "path": "Skills",
+          "color": "#8c160f"
+        },
+        "core": {},
+        "swadesfxvfx": {
+          "animationTemplate": "",
+          "animationDelay": "",
+          "audioTemplate": "",
+          "audioDelay": ""
+        },
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\">\n<p>Fighting covers all hand-to-hand (melee) attacks, whether it&rsquo;s with fists, axes, laser swords, or martial arts. See @Compendium[swade-core-rules.swade-rules.Combat]{Chapter Three} for the combat rules and the various maneuvers a warrior might attempt.</p>\n</div>",
+        "notes": "",
+        "additionalStats": {},
+        "attribute": "agility",
+        "isCoreSkill": false,
+        "die": {
+          "sides": 6,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "source": "",
+        "swid": "fighting",
+        "choiceSets": []
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194880,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Compendium.swade-core-rules.swade-skills.wWiwjPlzAQU3TN9l",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "WOwV9P6LgpkrqNV6",
+      "name": "Gambling",
+      "type": "skill",
+      "img": "systems/swade/assets/icons/skills/rolling-dices.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "cf": {
+          "id": "temp_qals24wpyph",
+          "path": "Skills",
+          "color": "#8c160f"
+        },
+        "core": {},
+        "swadesfxvfx": {
+          "animationTemplate": "",
+          "animationDelay": "",
+          "audioTemplate": "",
+          "audioDelay": ""
+        },
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\"><p>Gambling is common in the saloons of the Old West, the back rooms of criminal organizations, the barracks of most armies, or the flight decks of scifi spaceships.</p>\n<p>To simulate an hour of gambling without having to roll for every single toss of the dice or hand of cards, have everyone agree on the stakes, such as $10, 10 gold coins, etc. Everyone in the game then makes a Gambling roll. The lowest total pays the highest total the difference times the stake. The next lowest pays the second highest the difference times the stake, and so on. If there&rsquo;s an odd man left in the middle, he breaks even.</p>\n<p class=\"embedded-example\"><strong>Example:</strong> Red rolls highest with a 10 and Gabe rolls lowest with a 4. The difference is 6, so Gabe pays Red 6 &times; the stake of $10, or $60.</p>\n<p><strong>Cheating: </strong>A character who cheats adds +2 to his roll. The GM may raise or lower this modifier depending on the particulars of the game or the method of cheating. If a cheater rolls a @Compendium[swade-core-rules.swade-rules.Trait Rolls]{Critical Failure}, however, he&rsquo;s caught. The consequences depend on the circumstances and who noticed, but are usually unpleasant!</p></div>",
+        "notes": "",
+        "additionalStats": {},
+        "attribute": "smarts",
+        "isCoreSkill": false,
+        "die": {
+          "sides": 6,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "source": "",
+        "swid": "gambling",
+        "choiceSets": []
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194887,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Compendium.swade-core-rules.swade-skills.zPegv65RzQXUbQIz",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "kBuHnbuJ1tIMoEXE",
+      "name": "Healing",
+      "type": "skill",
+      "img": "systems/swade/assets/icons/skills/medical-pack.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "cf": {
+          "id": "temp_qals24wpyph",
+          "path": "Skills",
+          "color": "#8c160f"
+        },
+        "core": {},
+        "swadesfxvfx": {
+          "animationTemplate": "",
+          "animationDelay": "",
+          "audioTemplate": "",
+          "audioDelay": ""
+        },
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\">\n<p>Healing has multiple uses, from treating @Compendium[swade-core-rules.swade-rules.Damage Effects]{Wounds} to diagnosing diseases and analyzing certain kinds of forensic evidence.</p>\n<p>See @Compendium[swade-core-rules.swade-rules.Healing]{Healing} for rules on mending and treating @Compendium[swade-core-rules.swade-rules.Damage Effects]{Wounds}, and @Compendium[swade-core-rules.swade-rules.Hazards]{Hazards} for treatment of disease or poison.</p>\n<p><strong>Forensics: </strong> Healing can also be used to analyze evidence that relates to anatomical trauma, including cause and time of death, angle of attack, and similar matters. @Compendium[swade-core-rules.swade-rules.Trait Rolls]{Success} provides basic information and a @Compendium[swade-core-rules.swade-rules.Trait Rolls]{raise} increases the details uncovered.</p>\n</div>",
+        "notes": "",
+        "additionalStats": {},
+        "attribute": "smarts",
+        "isCoreSkill": false,
+        "die": {
+          "sides": 6,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "source": "",
+        "swid": "healing",
+        "choiceSets": []
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194894,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Compendium.swade-core-rules.swade-skills.Dc50EUXxlsJl7sph",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "wkoADzGSUC3YBIDX",
+      "name": "Performance",
+      "type": "skill",
+      "img": "systems/swade/assets/icons/skills/drama-masks.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "cf": {
+          "id": "temp_qals24wpyph",
+          "path": "Skills",
+          "color": "#8c160f"
+        },
+        "core": {},
+        "swadesfxvfx": {
+          "animationTemplate": "",
+          "animationDelay": "",
+          "audioTemplate": "",
+          "audioDelay": ""
+        },
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\">\n<p>A good entertainer can lift the spirits, rally a crowd to action, or simply earn a few bucks from the locals. Specifics depend on the situation, setting, and how well the character is known in the area.</p>\n<p>Performance covers singing, acting, playing an instrument, or similar tasks that require an audience to appreciate.</p>\n<p><strong>Raising Funds:</strong> The amount of money a character can raise by performing is extremely subjective, but as a general rule a @Compendium[swade-core-rules.swade-rules.Trait Rolls]{successful} performance raises 20% of the setting's @Compendium[swade-core-rules.swade-rules.Characters]{Starting Funds} with a success and 30% with a raise. The GM can multiply this amount by the performer's @Compendium[swade-core-rules.swade-rules.Advancement]{Rank} if she feels it's appropriate. These numbers work for typical performers who might be known in a small establishment or area. Larger performances can greatly boost the performer's fee, but also require more time, energy, and setup.</p>\n<p><strong>Deception: </strong>Performance can be used instead of @Compendium[swade-core-rules.swade-skills.Persuasion]{Persuasion} if the character is attempting to deceive, bluff, or disguise herself and the GM agrees it makes sense in the context of the situation.</p>\n</div>",
+        "notes": "",
+        "additionalStats": {},
+        "attribute": "spirit",
+        "isCoreSkill": false,
+        "die": {
+          "sides": 6,
+          "modifier": 2
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "source": "",
+        "swid": "performance",
+        "choiceSets": []
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194900,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Compendium.swade-core-rules.swade-skills.SJ1nN0CmOHNQhfOQ",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "iuvpgo9Lf51AABYU",
+      "name": "Shooting",
+      "type": "skill",
+      "img": "systems/swade/assets/icons/skills/crosshair.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "cf": {
+          "id": "temp_qals24wpyph",
+          "path": "Skills",
+          "color": "#8c160f"
+        },
+        "core": {},
+        "swadesfxvfx": {
+          "animationTemplate": "",
+          "animationDelay": "",
+          "audioTemplate": "",
+          "audioDelay": ""
+        },
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\">\n<p>Shooting covers all attempts to hit a target with a ranged weapon such as a bow, pistol, or rocket launcher (thrown weapons use @Compendium[swade-core-rules.swade-skills.Athletics]{Athletics}). See @Compendium[swade-core-rules.swade-rules.Combat]{Chapter Three} for details on ranged combat.</p>\n</div>",
+        "notes": "",
+        "additionalStats": {},
+        "attribute": "agility",
+        "isCoreSkill": false,
+        "die": {
+          "sides": 6,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "source": "",
+        "swid": "shooting",
+        "choiceSets": []
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194906,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Compendium.swade-core-rules.swade-skills.sOHfVvBDhe3Oy3r1",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "eUy0Fkp5gRok5ZV6",
+      "name": "Attractive",
+      "type": "edge",
+      "img": "systems/swade/assets/icons/edge.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "cf": {
+          "id": "temp_9dc4ijzy8uh",
+          "path": "Edges#/CF_SEP/Background Edges",
+          "color": "#000000"
+        },
+        "core": {},
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\">\n<p><span class=\"fontstyle0\">It&rsquo;s no secret people are more willing to help those they find physically attractive. Your character adds +1 to @Compendium[swade-core-rules.swade-skills.Performance]{Performance} and @Compendium[swade-core-rules.swade-skills.Persuasion]{Persuasion} rolls</span>&nbsp;if the target is attracted to his general type (gender, sex, species, etc.).</p>\n</div>",
+        "notes": "",
+        "additionalStats": {},
+        "favorite": false,
+        "category": "",
+        "isArcaneBackground": false,
+        "requirements": [
+          {
+            "type": "rank",
+            "value": 0,
+            "selector": "",
+            "combinator": "and"
+          },
+          {
+            "type": "other",
+            "label": "Vigor d6+",
+            "selector": "",
+            "value": "",
+            "combinator": "and"
+          }
+        ],
+        "grants": [],
+        "source": "",
+        "swid": "attractive",
+        "choiceSets": [],
+        "charges": {
+          "hasCharges": false,
+          "charges": {
+            "HbBQFXHy": {
+              "id": "HbBQFXHy",
+              "sort": 0,
+              "name": "Charges",
+              "value": 1,
+              "max": 1,
+              "rechargeType": "finite"
+            }
+          }
+        }
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194914,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Compendium.swade-core-rules.swade-edges.fZdj4N7x0el1Mq1B",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "JAEaUKMcBNRE13AY",
+      "name": "Very Attractive",
+      "type": "edge",
+      "img": "systems/swade/assets/icons/edge.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "cf": {
+          "id": "temp_9dc4ijzy8uh",
+          "path": "Edges#/CF_SEP/Background Edges",
+          "color": "#000000"
+        },
+        "core": {},
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\">\n<p><span class=\"fontstyle0\">Your hero is drop-dead gorgeous. He increases his @Compendium[swade-core-rules.swade-skills.Performance]{Performance} and @Compendium[swade-core-rules.swade-skills.Persuasion]{Persuasion} bonus to +2.</span></p>\n</div>",
+        "notes": "",
+        "additionalStats": {},
+        "favorite": false,
+        "category": "",
+        "isArcaneBackground": false,
+        "requirements": [
+          {
+            "type": "rank",
+            "value": 0,
+            "selector": "",
+            "combinator": "and"
+          },
+          {
+            "type": "other",
+            "label": "Attractive",
+            "selector": "",
+            "value": "",
+            "combinator": "and"
+          }
+        ],
+        "grants": [],
+        "source": "",
+        "swid": "very-attractive",
+        "choiceSets": [],
+        "charges": {
+          "hasCharges": false,
+          "charges": {
+            "F2UPQMJ1": {
+              "id": "F2UPQMJ1",
+              "sort": 0,
+              "name": "Charges",
+              "value": 1,
+              "max": 1,
+              "rechargeType": "finite"
+            }
+          }
+        }
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194920,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Compendium.swade-core-rules.swade-edges.b4WY2AZZHq9Jg0hr",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "RhQ9t06499o8Kntt",
+      "name": "Ecarp Pistol",
+      "type": "weapon",
+      "img": "systems/swade/assets/icons/weapon.svg",
+      "effects": [],
+      "folder": "wL1dIYmnHlBzVKIT",
+      "sort": 0,
+      "flags": {
+        "swadesfxvfx": {
+          "animationTemplate": "",
+          "animationDelay": "",
+          "audioTemplate": "",
+          "audioDelay": ""
+        },
+        "core": {},
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<p>L&rsquo;Escarp Pistol est un pistolet automatique de petite taille, donc ais&eacute;ment&nbsp;dissimulable. En forme de Sea Horse, les&nbsp;montures du royaume d&rsquo;Escarp, il poss&egrave;de&nbsp;plusieurs avantages non n&eacute;gligeables.&nbsp;Deux chargeurs de 20 balles (de deux&nbsp;calibres diff&eacute;rents), une double g&acirc;chette&nbsp;et un double canon, lui permettent m&ecirc;me&nbsp;de faire feu simultan&eacute;ment.&nbsp; Rafale de 2 ou&nbsp;coup par coup.</p>",
+        "notes": "PA 2, SA",
+        "additionalStats": {},
+        "quantity": 1,
+        "weight": 2,
+        "price": 200,
+        "equippable": false,
+        "equipStatus": 4,
+        "isArcaneDevice": false,
+        "arcaneSkillDie": {
+          "sides": 4,
+          "modifier": 0
+        },
+        "powerPoints": {},
+        "isVehicular": false,
+        "mods": 1,
+        "actions": {
+          "dmgMod": "",
+          "additional": {
+            "xh9oe7yu32nsk427": {
+              "name": "Tir Rafale",
+              "type": "trait",
+              "resourcesUsed": 5,
+              "dice": 2,
+              "modifier": "-2",
+              "uuid": null,
+              "macroActor": "default",
+              "isHeavyWeapon": false
+            }
+          },
+          "trait": "Shooting",
+          "traitMod": ""
+        },
+        "bonusDamageDie": 6,
+        "bonusDamageDice": 1,
+        "favorite": false,
+        "templates": {
+          "cone": false,
+          "stream": false,
+          "small": false,
+          "medium": false,
+          "large": false,
+          "scone": false
+        },
+        "category": "",
+        "grants": [],
+        "grantOn": 1,
+        "damage": "2d6x-1",
+        "range": "10/20/40",
+        "rof": 2,
+        "ap": 2,
+        "parry": 0,
+        "minStr": "",
+        "shots": 20,
+        "currentShots": 20,
+        "ammo": "",
+        "reloadType": "full",
+        "ppReloadCost": 2,
+        "trademark": 0,
+        "isHeavyWeapon": false,
+        "source": "",
+        "swid": "ecarp-pistol",
+        "choiceSets": [],
+        "build": {
+          "limit": 1,
+          "level": 1
+        },
+        "charges": {
+          "hasCharges": false,
+          "charges": {
+            "QiliJ95b": {
+              "id": "QiliJ95b",
+              "sort": 0,
+              "name": "Charges",
+              "value": 1,
+              "max": 1,
+              "rechargeType": "finite"
+            }
+          }
+        },
+        "activities": [],
+        "rangeType": 1
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194926,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Item.Wp7L2g3SjHUoCYBl",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "FxkDjIREavu6Mu7l",
+      "name": "Dague électromagnétique",
+      "type": "weapon",
+      "img": "systems/swade/assets/icons/weapon.svg",
+      "effects": [],
+      "folder": "RRiv8WIY1b4rSALk",
+      "sort": 0,
+      "flags": {
+        "swadesfxvfx": {
+          "animationTemplate": "",
+          "animationDelay": "",
+          "audioTemplate": "",
+          "audioDelay": ""
+        },
+        "core": {},
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<p>La dague (ou le couteau)&nbsp;&eacute;lectromagn&eacute;tique g&eacute;n&egrave;re de&nbsp; l&rsquo;&eacute;nergie afin de devenir plus l&eacute;tale. Cet effet produit un petit bruit de gr&eacute;sillement&nbsp;caract&eacute;ristique &agrave; chaque utilisation.</p>",
+        "notes": "HW ; inutilisables sans énergie.",
+        "additionalStats": {},
+        "quantity": 1,
+        "weight": null,
+        "price": 225,
+        "equippable": false,
+        "equipStatus": 4,
+        "isArcaneDevice": false,
+        "arcaneSkillDie": {
+          "sides": 4,
+          "modifier": 0
+        },
+        "powerPoints": {},
+        "isVehicular": false,
+        "mods": 1,
+        "actions": {
+          "dmgMod": "",
+          "additional": {},
+          "trait": "Fighting",
+          "traitMod": ""
+        },
+        "bonusDamageDie": 6,
+        "bonusDamageDice": 1,
+        "favorite": false,
+        "templates": {
+          "cone": false,
+          "stream": false,
+          "small": false,
+          "medium": false,
+          "large": false,
+          "scone": false
+        },
+        "category": "",
+        "grants": [],
+        "grantOn": 1,
+        "damage": "@str+1d6x",
+        "range": "",
+        "rof": 1,
+        "ap": 4,
+        "parry": 0,
+        "minStr": "d4",
+        "shots": 0,
+        "currentShots": 0,
+        "ammo": "",
+        "reloadType": "full",
+        "ppReloadCost": 2,
+        "trademark": 0,
+        "isHeavyWeapon": false,
+        "source": "",
+        "swid": "dague-electromagnetique",
+        "choiceSets": [],
+        "build": {
+          "limit": 1,
+          "level": 1
+        },
+        "charges": {
+          "hasCharges": false,
+          "charges": {
+            "HaLqjagm": {
+              "id": "HaLqjagm",
+              "sort": 0,
+              "name": "Charges",
+              "value": 1,
+              "max": 1,
+              "rechargeType": "finite"
+            }
+          }
+        },
+        "activities": [],
+        "rangeType": 0
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194933,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Item.zYDxokdKC4dYz8Ei",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    },
+    {
+      "_id": "9TUKRN89QMEulgaJ",
+      "name": "_Unskilled Attempt",
+      "type": "skill",
+      "img": "systems/swade/assets/icons/skills/uncertainty.svg",
+      "effects": [],
+      "folder": null,
+      "sort": 0,
+      "flags": {
+        "cf": {
+          "id": "temp_qals24wpyph",
+          "path": "Skills",
+          "color": "#8c160f"
+        },
+        "core": {},
+        "swadesfxvfx": {
+          "animationTemplate": "",
+          "animationDelay": "",
+          "audioTemplate": "",
+          "audioDelay": ""
+        },
+        "swim": {
+          "config": {
+            "reloadSFX": "",
+            "fireSFX": "",
+            "autoFireSFX": "",
+            "silencedFireSFX": "",
+            "silencedAutoFireSFX": "",
+            "emptySFX": "",
+            "isPack": false,
+            "isConsumable": false,
+            "isSilenced": false,
+            "loadedAmmo": "",
+            "_version": 1
+          }
+        }
+      },
+      "system": {
+        "description": "<div class=\"swade-core\">\n<p>If a character doesn&rsquo;t have a skill for an action he&rsquo;s attempting, he rolls a d4 for his skill die (and a Wild Die if a @Compendium[swade-core-rules.swade-rules.Wild Cards and Extras]{Wild Card}) and subtracts 2 from the total.</p>\n<p>The GM may decide certain tasks cannot be attempted unskilled, such as performing complex surgery or flying a commercial jet.</p>\n</div>",
+        "notes": "",
+        "additionalStats": {},
+        "attribute": "",
+        "isCoreSkill": false,
+        "die": {
+          "sides": 4,
+          "modifier": -2
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "source": "",
+        "swid": "unskilled-attempt",
+        "choiceSets": []
+      },
+      "_stats": {
+        "systemId": "swade",
+        "systemVersion": "2.3.6",
+        "coreVersion": "13.351",
+        "createdTime": null,
+        "modifiedTime": 1683140194939,
+        "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+        "compendiumSource": "Compendium.swade-core-rules.swade-skills.1Pl2ZL8MPyKnaVEg",
+        "duplicateSource": null,
+        "exportSource": null
+      },
+      "ownership": {
+        "default": 0
+      }
+    }
+  ],
+  "effects": [],
+  "folder": "dPrb4AKeanukigCX",
+  "flags": {
+    "swim": {
+      "config": {
+        "_version": 2
+      }
+    }
+  },
+  "system": {
+    "attributes": {
+      "agility": {
+        "die": {
+          "sides": 6,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        }
+      },
+      "smarts": {
+        "die": {
+          "sides": 6,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "animal": false
+      },
+      "spirit": {
+        "unShakeBonus": 0,
+        "die": {
+          "sides": 8,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        }
+      },
+      "strength": {
+        "die": {
+          "sides": 4,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "encumbranceSteps": 0
+      },
+      "vigor": {
+        "unStunBonus": 0,
+        "die": {
+          "sides": 6,
+          "modifier": 0
+        },
+        "wild-die": {
+          "sides": 6
+        },
+        "soakBonus": 0,
+        "bleedOut": {
+          "modifier": 0,
+          "ignoreWounds": false
+        }
+      }
+    },
+    "stats": {
+      "toughness": {
+        "value": 0,
+        "armor": 0,
+        "modifier": 0
+      },
+      "parry": {
+        "value": 0,
+        "modifier": 0,
+        "shield": 0
+      },
+      "size": 0,
+      "speed": {}
+    },
+    "details": {
+      "autoCalcToughness": true,
+      "autoCalcParry": true,
+      "archetype": "Femme fatale",
+      "appearance": "",
+      "notes": "",
+      "goals": "",
+      "biography": {
+        "value": "<p>&nbsp;</p>\n<p>Plus courtisane que simple call-girl, vous louez vos charmes pour le compte de riches marchands ou politiciens. Vous &ecirc;tes une experte en espionnage et en assassinat que l&rsquo;on emploie pour se d&eacute;barrasser de t&eacute;moins g&ecirc;nants ou pour faire pression sur des administrateurs (politiques ou corporatistes) un peu trop z&eacute;l&eacute;s. Pour autant, si vous &ecirc;tes une vraie professionnelle qui se doit de respecter ses contrats, vous n&rsquo;&ecirc;tes pas forc&eacute;ment d&eacute;nu&eacute;e d&rsquo;&eacute;motions, et il arrive que vous fassiez preuve d&rsquo;une certaine compassion envers vos cibles, tant que le deal avec votre employeur est respect&eacute;. Ce Job vous demande un bon sens du contact et de l&rsquo;organisation, mais &eacute;galement des facilit&eacute;s d&rsquo;improvisation, car vous devez souvent jongler avec vos doubles-vies et vos couvertures.</p>"
+      },
+      "species": {
+        "name": "humains"
+      },
+      "currency": 500,
+      "wealth": {
+        "die": 6,
+        "modifier": 0,
+        "wild-die": 6
+      },
+      "conviction": {
+        "value": 0,
+        "active": false
+      }
+    },
+    "powerPoints": {
+      "general": {
+        "value": 0,
+        "max": 0
+      }
+    },
+    "fatigue": {
+      "value": 0,
+      "max": 2,
+      "ignored": 0
+    },
+    "wounds": {
+      "value": 0,
+      "max": 3,
+      "ignored": 0
+    },
+    "woundsOrFatigue": {
+      "ignored": 0
+    },
+    "advances": {
+      "mode": "expanded",
+      "value": 0,
+      "rank": "Novice",
+      "details": "",
+      "list": []
+    },
+    "bennies": {
+      "value": 3,
+      "max": 3
+    },
+    "status": {
+      "isShaken": false,
+      "isDistracted": false,
+      "isVulnerable": false,
+      "isStunned": false,
+      "isEntangled": false,
+      "isBound": false,
+      "isIncapacitated": false
+    },
+    "initiative": {
+      "hasHesitant": false,
+      "hasLevelHeaded": false,
+      "hasImpLevelHeaded": false,
+      "hasQuick": false,
+      "follow": ""
+    },
+    "additionalStats": {},
+    "pace": {
+      "ground": 6,
+      "running": {
+        "die": 6,
+        "mod": 0
+      },
+      "base": "ground",
+      "fly": null,
+      "swim": null,
+      "burrow": null
+    },
+    "category": "",
+    "auras": {
+      "aura1": {
+        "radius": 5,
+        "walls": false,
+        "enabled": false,
+        "color": "#000000",
+        "alpha": 0.25,
+        "visibleTo": []
+      },
+      "aura2": {
+        "radius": 5,
+        "walls": false,
+        "enabled": false,
+        "color": "#000000",
+        "alpha": 0.25,
+        "visibleTo": []
+      }
+    }
+  },
+  "prototypeToken": {
+    "name": "Maria",
+    "displayName": 50,
+    "actorLink": true,
+    "width": 1,
+    "height": 1,
+    "lockRotation": false,
+    "rotation": 0,
+    "alpha": 1,
+    "disposition": 1,
+    "displayBars": 0,
+    "bar1": {
+      "attribute": null
+    },
+    "bar2": {
+      "attribute": null
+    },
+    "flags": {
+      "swadeSplatter": {
+        "bloodColor": ""
+      },
+      "token-auras": {
+        "aura1": {
+          "permission": "all",
+          "colour": "#ffffff",
+          "opacity": 0.5,
+          "distance": null,
+          "square": false
+        },
+        "aura2": {
+          "permission": "all",
+          "colour": "#ffffff",
+          "opacity": 0.5,
+          "distance": null,
+          "square": false
+        }
+      }
+    },
+    "randomImg": false,
+    "light": {
+      "alpha": 0.25,
+      "angle": 360,
+      "bright": 0,
+      "coloration": 1,
+      "dim": 0,
+      "luminosity": 0.5,
+      "saturation": 0,
+      "contrast": 0,
+      "shadows": 0,
+      "animation": {
+        "speed": 5,
+        "intensity": 5,
+        "type": null,
+        "reverse": false
+      },
+      "darkness": {
+        "min": 0,
+        "max": 1
+      },
+      "color": null,
+      "attenuation": 0.5,
+      "negative": false,
+      "priority": 0
+    },
+    "texture": {
+      "src": "Cobra/Persos/token%20Maria%20Sotto.png",
+      "tint": "#ffffff",
+      "scaleX": 1,
+      "scaleY": 1,
+      "offsetX": 0,
+      "offsetY": 0,
+      "rotation": 0,
+      "anchorX": 0.5,
+      "anchorY": 0.5,
+      "fit": "contain",
+      "alphaThreshold": 0.75
+    },
+    "sight": {
+      "angle": 360,
+      "enabled": false,
+      "range": 0,
+      "brightness": 1,
+      "visionMode": "basic",
+      "color": null,
+      "attenuation": 0.1,
+      "saturation": 0,
+      "contrast": 0
+    },
+    "detectionModes": [],
+    "appendNumber": false,
+    "prependAdjective": false,
+    "occludable": {
+      "radius": 0
+    },
+    "ring": {
+      "enabled": false,
+      "colors": {
+        "ring": null,
+        "background": null
+      },
+      "effects": 1,
+      "subject": {
+        "scale": 1,
+        "texture": null
+      }
+    },
+    "turnMarker": {
+      "mode": 1,
+      "animation": null,
+      "src": null,
+      "disposition": false
+    },
+    "movementAction": null
+  },
+  "_stats": {
+    "systemId": "swade",
+    "systemVersion": "3.1.4",
+    "coreVersion": "13.351",
+    "createdTime": null,
+    "modifiedTime": 1765308907787,
+    "lastModifiedBy": "kbWq9IQxjcVUqQGf",
+    "compendiumSource": null,
+    "duplicateSource": null,
+    "exportSource": {
+      "worldId": "cobra",
+      "uuid": "Actor.PuuYSEszyNwdC0PC",
+      "coreVersion": "13.351",
+      "systemId": "swade",
+      "systemVersion": "5.1.0"
+    }
+  },
+  "ownership": {
+    "default": 0
+  }
+}
