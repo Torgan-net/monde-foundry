@@ -90,12 +90,12 @@
 
   const getFinalResult = (total) => {
     if (total === 0)
-      return `<p><strong>0 — Échec total</strong> : aucun effet.</p>`;
+      return `<p><strong>0 — Échec total</strong> : Le plaidoyer est sans effet et les négociations échouent. Les discussions peuvent reprendre suite à de nouvelles informations ou à des faveurs. Dans un procès, l’accusé est acquitté.</p>`;
     if (total <= 3)
-      return `<p><strong>1–3 — Succès limité</strong> : soutien faible.</p>`;
+      return `<p><strong>1–3 — Succès limité</strong> : La cible n’est pas entièrement convaincue mais procure un soutien minimum. Dans un procès, le prévenu écope d’une peine légère.</p>`;
     if (total <= 5)
-      return `<p><strong>4–5 — Succès</strong> : aide conditionnelle.</p>`;
-    return `<p><strong>6+ — Succès majeur</strong> : soutien total.</p>`;
+      return `<p><strong>4–5 — Succès</strong> : L’auditoire est raisonnablement convaincu ou désire apporter son soutien. Il fournit à peu près l’aide demandée mais sous certaines conditions ou exige en retour un paiement, une faveur ou une tâche à accomplir. Dans un procès le procureur obtient une condamnation classique.</p>`;
+    return `<p><strong>6+ — Succès majeur</strong> : La cible est pleinement convaincue ou désireuse d’apporter son aide. Elle fournit plus de ressources ou de soutien qu’espérés. Dans un procès, l’accusé écope de la peine maximum.</p>`;
   };
 
   const roundBox = (html) => `
@@ -320,28 +320,34 @@
             const defenseBennyLabels = [];
             let defenseCritFail = isCriticalFailure(currentDefense);
 
-            // ---- Proposition de relance de la défense (jeton du PNJ et/ou du MJ) ----
+            // ---- Proposition de relance de la défense (jeton du PNJ EN PRIORITÉ, puis MJ) ----
             // Répétée tant qu'il reste des jetons disponibles ET que le
             // dernier résultat n'est pas un échec critique (règle SWADE :
             // un échec critique — double 1 — ne peut jamais être relancé).
             // Règle SWADE : on garde le MEILLEUR résultat de toute la série
             // de jets (pas forcément le dernier).
+            // Les jetons du PNJ sont proposés EN PRIORITÉ tant qu'il y en a.
+            // Les jetons du MJ ne sont proposés que si le PNJ n'en a plus.
             while (!defenseCritFail) {
               const defenseSources = [];
-              if (isWildcard(target) && getBennies(target) > 0) {
+              
+              // Toujours proposer les jetons du PNJ d'abord s'il en a
+              if (getBennies(target) > 0) {
                 defenseSources.push({
                   key: "npc",
                   label: `Jeton de ${target.name}`,
                   count: getBennies(target)
                 });
-              }
-              const gmBennies = getGMBennies();
-              if (gmBennies > 0) {
-                defenseSources.push({
-                  key: "gm",
-                  label: "Jeton du MJ",
-                  count: gmBennies
-                });
+              } else {
+                // Ne proposer les jetons du MJ que si le PNJ n'a plus de jetons
+                const gmBennies = getGMBennies();
+                if (gmBennies > 0) {
+                  defenseSources.push({
+                    key: "gm",
+                    label: "Jeton du MJ",
+                    count: gmBennies
+                  });
+                }
               }
 
               if (defenseSources.length === 0) break;
