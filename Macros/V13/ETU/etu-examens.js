@@ -260,6 +260,55 @@
   const statut = parametres.statut;
   if (!rang || !statut) { notify("warn", "Configuration incomplète."); return; }
 
+  // -------------------------------------------------------------------------
+  // 5bis. DIALOGUE SÉPARÉ — Doyen / Professeur du semestre (optionnel)
+  //    "Aucun effet" saute l'étape sans annuler tout l'examen ; "Annuler
+  //    l'examen" interrompt tout, comme le premier écran. Le résultat est
+  //    capturé via une variable fermée par les callbacks (pas via leur
+  //    valeur de retour, que formDialog n'exploite pas pour des boutons
+  //    personnalisés).
+  // -------------------------------------------------------------------------
+  let resultatProf = { etat: "annule" };
+  await formDialog({
+    title: "Doyen / Professeur — ETU",
+    content: etuWrap(`
+      ${etuHeader("Bureau du Corps Enseignant", `${actor.name} — Effet du Doyen/Professeur en poste ce semestre`)}
+      <p style="${S.hint}">Effets génériques à activer manuellement selon la personne en poste — aucune liste figée, choisis ce qui correspond. Laisse tout vide/décoché si aucun effet ne s'applique, ou clique directement sur "Aucun effet".</p>
+      ${etuField("Bonus/Malus au jet d'examen (nombre)", `<input type="number" name="profBonus" value="0" style="${S.select}">`)}
+      <div style="margin-bottom:12px;">
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#f2ede0;margin-bottom:6px;">
+          <input type="checkbox" name="profRelanceChoix"> Sur réussite : relancer et garder le meilleur (même sans Prouesse)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#f2ede0;margin-bottom:6px;">
+          <input type="checkbox" name="profIgnorerEchec"> Ignorer le malus en cas d'échec (simple ou critique)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#f2ede0;margin-bottom:6px;">
+          <input type="checkbox" name="profRelanceGratuite"> Relance gratuite supplémentaire (indépendante de celle de la Compétence de Filière)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#f2ede0;">
+          <input type="checkbox" name="profTableD12"> Table de Perks forcée en d12 (peu importe le Rang)
+        </label>
+      </div>
+    `),
+    boutons: [
+      { action: "ok", label: "Configurer", default: true,
+        callback: (event, button) => { resultatProf = { etat: "configure", donnees: button?.form ? Object.fromEntries(new FormData(button.form)) : {} }; } },
+      { action: "aucun", label: "Aucun effet",
+        callback: () => { resultatProf = { etat: "aucun" }; } },
+      { action: "cancel", label: "Annuler l'examen",
+        callback: () => { resultatProf = { etat: "annule" }; } }
+    ]
+  });
+
+  if (resultatProf.etat === "annule") return;
+  const profParams = resultatProf.etat === "configure" ? resultatProf.donnees : {};
+
+  const profBonus = Number(profParams?.profBonus) || 0;
+  const profRelanceChoix = profParams?.profRelanceChoix === "on";
+  const profIgnorerEchec = profParams?.profIgnorerEchec === "on";
+  const profRelanceGratuiteDispo = profParams?.profRelanceGratuite === "on";
+  const profTableD12 = profParams?.profTableD12 === "on";
+
   // Gestion de l'effet PERMANENT "Double Major" (-2 Bonus d'études, jamais
   // retiré par le nettoyage automatique de fin d'examen)
   const effetDoubleMajorExistant = actor.effects.find(e => e.getFlag(FLAG_SCOPE, "etuDoubleMajor"));
@@ -310,7 +359,7 @@
   //    resté manuel : confirmer un éventuel échec critique (double 1 naturel),
   //    indétectable depuis le seul total final.
   // ===========================================================================
-  async function jouerJetEtLireTotal(majeure, bonusEtudes, difficulteExamen, bonusCumule) {
+  async function jouerJetEtLireTotal(majeure, bonusEtudes, difficulteExamen, bonusCumule, profBonus) {
     return new Promise((resolve) => {
       let resolu = false;
       const finaliser = (total, automatique, critiqueDetecte) => {
@@ -349,15 +398,16 @@
       // chaque appel). "additionalMods" est une supposition sur le nom du
       // paramètre ; à vérifier via la capture du dialogue (une ligne par
       // composante doit apparaître, avec la bonne valeur chacune).
-      // Bonus d'études et Difficulté d'examen séparés (demande explicite),
-      // + une éventuelle troisième ligne si un bonus après-jet a déjà été
+      // Bonus d'études, Difficulté d'examen et Bonus Doyen/Professeur
+      // séparés, + une éventuelle ligne si un bonus après-jet a déjà été
       // cumulé lors d'une relance précédente sur cette même Majeure.
       const modsSupplementaires = [
         { name: "ETU — Bonus d'études", label: "ETU — Bonus d'études", value: bonusEtudes },
         { name: "ETU — Difficulté d'examen", label: "ETU — Difficulté d'examen", value: difficulteExamen },
+        ...(profBonus ? [{ name: "ETU — Doyen/Professeur", label: "ETU — Doyen/Professeur", value: profBonus }] : []),
         ...(bonusCumule ? [{ name: "ETU — Bonus cumulé (Examen)", label: "ETU — Bonus cumulé (Examen)", value: bonusCumule }] : [])
       ];
-      const modificateurAAppliquer = bonusEtudes + difficulteExamen + bonusCumule;
+      const modificateurAAppliquer = bonusEtudes + difficulteExamen + profBonus + bonusCumule;
 
       (async () => {
         try {
@@ -369,7 +419,7 @@
           }
         } catch (e) {
           console.warn("[ETU — Examens] Déclenchement automatique du jet impossible :", e);
-          notify("warn", `Lance manuellement le jet de "${majeure.estGeneralStudies ? "Intellect" : majeure.nomCompetence}" sur la fiche, et ajoute toi-même : Bonus d'études ${bonusEtudes >= 0 ? "+" : ""}${bonusEtudes}, Difficulté d'examen ${difficulteExamen >= 0 ? "+" : ""}${difficulteExamen}${bonusCumule ? `, Bonus cumulé ${bonusCumule >= 0 ? "+" : ""}${bonusCumule}` : ""} via le champ "Nom"/"Valeur" + "Ajout" du dialogue de jet.`);
+          notify("warn", `Lance manuellement le jet de "${majeure.estGeneralStudies ? "Intellect" : majeure.nomCompetence}" sur la fiche, et ajoute toi-même : Bonus d'études ${bonusEtudes >= 0 ? "+" : ""}${bonusEtudes}, Difficulté d'examen ${difficulteExamen >= 0 ? "+" : ""}${difficulteExamen}${profBonus ? `, Doyen/Professeur ${profBonus >= 0 ? "+" : ""}${profBonus}` : ""}${bonusCumule ? `, Bonus cumulé ${bonusCumule >= 0 ? "+" : ""}${bonusCumule}` : ""} via le champ "Nom"/"Valeur" + "Ajout" du dialogue de jet.`);
         }
       })();
     });
@@ -393,6 +443,7 @@
     let verdict = null;
     let continuer = true;
     let relanceGratuiteDisponible = !majeure.estGeneralStudies; // Compétence de Filière : 1 relance gratuite/examen
+    let relanceGratuiteProfDisponible = profRelanceGratuiteDispo; // Doyen/Professeur : indépendante de celle ci-dessus
     let besoinNouveauJet = true;
     let totalActuel = 0;
     let automatiqueActuel = true;
@@ -401,7 +452,7 @@
     while (continuer) {
       if (besoinNouveauJet) {
         notify("info", `Jet en cours pour ${majeure.label} — Bonus d'études ${bonusEtudesInitial >= 0 ? "+" : ""}${bonusEtudesInitial} et Difficulté d'examen ${difficulteExamen >= 0 ? "+" : ""}${difficulteExamen} transmis automatiquement au dialogue de jet ; vérifie qu'ils apparaissent bien dans la liste des modificateurs avant de lancer.`);
-        const resultatJet = await jouerJetEtLireTotal(majeure, bonusEtudesInitial, difficulteExamen, bonusCumule);
+        const resultatJet = await jouerJetEtLireTotal(majeure, bonusEtudesInitial, difficulteExamen, bonusCumule, profBonus);
         totalActuel = resultatJet.total;
         automatiqueActuel = resultatJet.automatique;
         critiqueActuel = resultatJet.critiqueDetecte;
@@ -435,6 +486,7 @@
               <option style="background:#1d2c4d;color:#f2ede0;" value="valider">Valider ce résultat tel quel</option>
               ${bennies > 0 ? `<option style="background:#1d2c4d;color:#f2ede0;" value="jeton">Relancer avec un Jeton (${bennies} disponible(s)) — non natif à SWADE</option>` : ""}
               ${relanceGratuiteDisponible ? `<option style="background:#1d2c4d;color:#f2ede0;" value="relanceGratuite">Relance GRATUITE (Compétence de Filière — usage unique)</option>` : ""}
+              ${relanceGratuiteProfDisponible ? `<option style="background:#1d2c4d;color:#f2ede0;" value="relanceGratuiteProf">Relance GRATUITE (Doyen/Professeur — usage unique)</option>` : ""}
               <option style="background:#1d2c4d;color:#f2ede0;" value="bonusFixe">Ajouter un bonus après jet (nombre fixe ou formule, ex. Conviction 1d6!)</option>
             </select>`)}
           <p style="${S.hint}">La dépense de Conviction AVANT/PENDANT le jet est gérée directement dans le dialogue de jet natif SWADE, pas ici.</p>
@@ -456,6 +508,11 @@
 
       } else if (rapport.action === "relanceGratuite") {
         relanceGratuiteDisponible = false;
+        besoinNouveauJet = true;
+        continue;
+
+      } else if (rapport.action === "relanceGratuiteProf") {
+        relanceGratuiteProfDisponible = false;
         besoinNouveauJet = true;
         continue;
 
@@ -483,16 +540,27 @@
     resume.push(`<div style="${S.majeureTitre}">${majeure.label}${majeure.estGeneralStudies ? "" : ` (d${desAffiche})`}</div>`);
 
     if (verdict.type === "critique") {
-      await appliquerEffetsSimples(`Probation Académique (${majeure.label})`, [effetStatEtendue("scholarship", -2), effetCompetence("Persuasion", -2)], "au prochain examen");
-      resume.push(`<div style="${S.chatDetail}"><strong style="color:#ff5555;">ÉCHEC CRITIQUE</strong> — Probation Académique : Bonus d'études -2 et Persuasion -2 jusqu'au prochain examen.</div>`);
+      if (profIgnorerEchec) {
+        resume.push(`<div style="${S.chatDetail}"><strong style="color:#ff5555;">ÉCHEC CRITIQUE</strong> — Malus ignoré (effet Doyen/Professeur).</div>`);
+      } else {
+        await appliquerEffetsSimples(`Probation Académique (${majeure.label})`, [effetStatEtendue("scholarship", -2), effetCompetence("Persuasion", -2)], "au prochain examen");
+        resume.push(`<div style="${S.chatDetail}"><strong style="color:#ff5555;">ÉCHEC CRITIQUE</strong> — Probation Académique : Bonus d'études -2 et Persuasion -2 jusqu'au prochain examen.</div>`);
+      }
 
     } else if (verdict.type === "echec") {
-      await appliquerEffetsSimples(`Échec à l'examen (${majeure.label})`, [effetStatEtendue("scholarship", -2)], "au prochain examen");
-      resume.push(`<div style="${S.chatDetail}"><strong style="color:#e0685c;">Échec</strong> — Bonus d'études -2 jusqu'au prochain examen.</div>`);
+      if (profIgnorerEchec) {
+        resume.push(`<div style="${S.chatDetail}"><strong style="color:#e0685c;">Échec</strong> — Malus ignoré (effet Doyen/Professeur).</div>`);
+      } else {
+        await appliquerEffetsSimples(`Échec à l'examen (${majeure.label})`, [effetStatEtendue("scholarship", -2)], "au prochain examen");
+        resume.push(`<div style="${S.chatDetail}"><strong style="color:#e0685c;">Échec</strong> — Bonus d'études -2 jusqu'au prochain examen.</div>`);
+      }
 
     } else {
+      // Doyen/Professeur : table de Perks forcée en d12 si l'option est cochée
+      const deTableUtilise = profTableD12 ? 12 : rang.deTable;
+
       async function jeterSurTable(idTable, bonusJet = 0) {
-        const jet = await new Roll(`1d${rang.deTable}`).evaluate();
+        const jet = await new Roll(`1d${deTableUtilise}`).evaluate();
         const resultatNumero = Math.min(12, Math.max(1, jet.total + bonusJet));
         return { numero: resultatNumero, table: idTable };
       }
@@ -563,9 +631,12 @@
       }
 
       const premierJet = await jeterSurTable(majeure.filiere.table);
-      resume.push(`<div style="${S.chatDetail}"><strong style="color:#7fbf6a;">Réussite${verdict.raises > 0 ? " avec Prouesse" : ""}</strong> — jet sur la table ${NOM_TABLE_FR[majeure.filiere.table]} (d${rang.deTable}).</div>`);
+      resume.push(`<div style="${S.chatDetail}"><strong style="color:#7fbf6a;">Réussite${verdict.raises > 0 ? " avec Prouesse" : ""}</strong> — jet sur la table ${NOM_TABLE_FR[majeure.filiere.table]} (d${deTableUtilise}).</div>`);
 
-      if (verdict.raises > 0) {
+      if (verdict.raises > 0 || profRelanceChoix) {
+        if (profRelanceChoix && verdict.raises === 0) {
+          resume.push(`<div style="${S.chatDetail}">Relance sur réussite (effet Doyen/Professeur) : deux jets, meilleur résultat au choix.</div>`);
+        }
         const secondJet = await jeterSurTable(majeure.filiere.table);
         const choixDoubleJet = await formDialog({
           title: "Réussite avec Prouesse — ETU",
