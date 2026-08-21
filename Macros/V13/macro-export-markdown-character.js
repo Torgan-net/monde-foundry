@@ -1,6 +1,8 @@
 /**
  * MACRO FOUNDRY VTT — Export fiche de personnage (PJ) SWADE en Markdown
  * ------------------------------------------------------------
+ * Version : 1.1.2
+ * ------------------------------------------------------------
  * Compatible SWADE system v6+ (ApplicationV2 sheets).
  * Limité aux Personnages Joueurs (actor.type === "character") pour le moment.
  *
@@ -121,8 +123,17 @@
   function renderTableOrList(headers, rows, flavor) {
     if (!rows.length) return "";
     if (flavor === "discord") {
-      const sep = headers.length <= 2 ? " " : " — ";
-      return rows.map(r => `- ${r.join(sep)}`).join("\n") + "\n\n";
+      if (headers.length <= 2) {
+        return rows.map(r => `- ${r.join(" ")}`).join("\n") + "\n\n";
+      }
+      // Plus de 2 colonnes : on labellise chaque valeur pour rester
+      // lisible sans les en-têtes d'un tableau (Discord ne rend pas
+      // les tableaux Markdown).
+      return rows.map(r => {
+        const [first, ...rest] = r;
+        const labeled = rest.map((val, i) => `${headers[i + 1]} : ${val}`).join(", ");
+        return `- **${first}** — ${labeled}`;
+      }).join("\n") + "\n\n";
     }
     let out = `| ${headers.join(" | ")} |\n|${headers.map(() => "---").join("|")}|\n`;
     out += rows.map(r => `| ${r.join(" | ")} |`).join("\n") + "\n\n";
@@ -260,14 +271,16 @@
   md += `# ${actor.name}\n\n`;
 
   const archetype = gp(sys, "details.archetype") || "";
-  const speciesName = gp(sys, "details.species.name") || gp(sys, "details.ancestry") || "";
+  const ancestryItem = actor.items.find(i => i.type === "ancestry");
+  const speciesName = ancestryItem?.name
+    || gp(sys, "details.species.name") || gp(sys, "details.ancestry") || "";
   const advancesCount = gp(sys, "advances.value") ?? 0;
   const storedRank = gp(sys, "details.rank") || gp(sys, "advances.rank");
   const rank = storedRank || rankFromAdvances(advancesCount);
   const wildcard = sys.wildcard ? "Oui" : "Non";
 
-  md += `**Archétype :** ${archetype || "—"}  \n`;
-  if (speciesName) md += `**Espèce/Ancêtre :** ${speciesName}  \n`;
+  if (archetype) md += `**Archétype :** ${archetype}  \n`;
+  if (speciesName) md += `**Ascendance :** ${speciesName}  \n`;
   md += `**Rang :** ${rank} (${advancesCount} avancement${advancesCount > 1 ? "s" : ""})  \n`;
   md += `**Joueur (Wild Card) :** ${wildcard}\n\n`;
 
@@ -312,7 +325,7 @@
   const conviction = gp(sys, "conviction.value");
 
   md += `- **Parade :** ${parry}\n`;
-  md += `- **Résistance (Toughness) :** ${toughness}${armorTough ? ` (dont ${armorTough} d'armure)` : ""}\n`;
+  md += `- **Résistance :** ${toughness}${armorTough ? ` (${armorTough})` : ""}\n`;
   md += `- **Jetons :** ${bennies} / ${beniesMax}\n`;
   md += `- **Blessures :** ${wounds} / ${woundsMax}\n`;
   md += `- **Fatigue :** ${fatigue} / ${fatigueMax}\n`;
@@ -334,7 +347,7 @@
   ) ?? 0;
   const runningDieLabel = runningDieSides
     ? `d${runningDieSides}${runningDieMod > 0 ? "+" + runningDieMod : runningDieMod < 0 ? runningDieMod : ""}`
-    : "d6 (valeur par défaut des règles)";
+    : "d6";
 
   md += `- **Allure (Terrestre) :** ${paceGround ?? "—"}\n`;
   if (paceSwim !== undefined) md += `  - Nage : ${paceSwim}\n`;
@@ -476,6 +489,28 @@
   }
 
   // ------------------------------------------------------------
+  // Capacités spéciales (abilities liées à l'Ascendance/Ancestry ou
+  // granted par d'autres sources). Le nom exact du type d'objet varie
+  // selon la version du système ; plusieurs candidats sont tentés.
+  // ------------------------------------------------------------
+  const abilityTypeCandidates = ["ability", "special-ability", "feature", "racial-ability"];
+  const specialAbilities = actor.items
+    .filter(i => abilityTypeCandidates.includes(i.type))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (specialAbilities.length) {
+    md += `## Capacités spéciales\n\n`;
+    if (!includeDetails) {
+      md += specialAbilities.map(a => `- ${a.name}`).join("\n") + "\n\n";
+    } else {
+      for (const a of specialAbilities) {
+        const desc = stripHtml(gp(a.system, "description"));
+        md += `### ${a.name}\n${desc || "_Pas de description_"}\n\n`;
+      }
+    }
+  }
+
+  // ------------------------------------------------------------
   // Pouvoirs (Powers) — infos mécaniques toujours visibles,
   // description complète seulement si includeDetails est actif.
   // ------------------------------------------------------------
@@ -542,7 +577,7 @@
   // ------------------------------------------------------------
   // Équipement
   // ------------------------------------------------------------
-  const gear = actor.items.filter(i => ["gear", "weapon", "armor", "shield"].includes(i.type))
+  const gear = actor.items.filter(i => ["gear", "weapon", "armor", "shield", "consumable"].includes(i.type))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   const hasEquipmentSection = gear.length > 0 || !!wealthLabel || money !== undefined;
@@ -558,43 +593,131 @@
 
     const weapons = gear.filter(i => i.type === "weapon");
     const armors = gear.filter(i => i.type === "armor" || i.type === "shield");
-    const misc = gear.filter(i => i.type === "gear");
+    const misc = gear.filter(i => i.type === "gear" || i.type === "consumable");
+
+    // Nombre de charges restantes d'un consommable (plusieurs noms de
+    // champs possibles selon la version du système).
+    function getCharges(item) {
+      const root = gp(item.system, "charges");
+      if (!root || !root.hasCharges) return null;
+      const list = root.charges;
+      if (!Array.isArray(list) || !list.length) return null;
+      return list
+        .map(c => (list.length > 1 ? `${c.name} : ${c.value}/${c.max}` : `${c.value}/${c.max}`))
+        .join(", ");
+    }
 
     if (weapons.length) {
       md += `### Armes\n\n`;
-      const headers = ["Nom", "Dégâts", "Portée", "CdT", "PA", "Équipée"];
-      const rows = weapons.map(w => [
-        w.name,
-        gp(w.system, "damage") || "—",
-        gp(w.system, "range") || "—",
-        gp(w.system, "rof") ?? "—",
-        gp(w.system, "ap") ?? "—",
-        gp(w.system, "equipped") ? "Oui" : "Non"
-      ]);
-      md += renderTableOrList(headers, rows, flavor);
+
+      // Résolution de "@str" dans les formules de dégâts (ex: "@str+d4")
+      // en le dé de Force réel du personnage (ex: "d4+d4").
+      const strAttr = gp(sys, "attributes.strength");
+      const strSides = gp(strAttr, "die.sides") ?? 4;
+      const strMod = firstNonZeroMod(gp(strAttr, "die.mod"), gp(strAttr, "modifier"), gp(strAttr, "bonus"));
+      const strengthDieLabel = formatDie(strSides, strMod);
+      const resolveDamage = (dmg) => dmg ? String(dmg).replace(/@str/gi, strengthDieLabel) : dmg;
+
+      if (flavor === "discord") {
+        // Rendu compact : on omet les infos non pertinentes ou par
+        // défaut (PA à 0, CdT à 1, portée non chiffrée type "Corps à
+        // corps", et le statut "Équipée" qui n'apporte rien ici).
+        const isRanged = (range) => /^\d+\s*\/\s*\d+\s*\/\s*\d+$/.test(String(range || "").trim());
+        const rows = weapons.map(w => {
+          const name = w.name;
+          const damage = resolveDamage(gp(w.system, "damage")) || "—";
+          const range = gp(w.system, "range");
+          const rof = gp(w.system, "rof");
+          const ap = gp(w.system, "ap");
+
+          const parts = [`Dégâts : ${damage}`];
+          if (isRanged(range)) parts.push(`Portée : ${range}`);
+          if (rof !== undefined && rof !== null && Number(rof) !== 1) parts.push(`CdT : ${rof}`);
+          if (ap !== undefined && ap !== null && Number(ap) !== 0) parts.push(`PA : ${ap}`);
+
+          return `- **${name}** — ${parts.join(", ")}`;
+        });
+        md += rows.join("\n") + "\n\n";
+      } else {
+        const headers = ["Nom", "Dégâts", "Portée", "CdT", "PA", "Équipée"];
+        const rows = weapons.map(w => [
+          w.name,
+          resolveDamage(gp(w.system, "damage")) || "—",
+          gp(w.system, "range") || "—",
+          gp(w.system, "rof") ?? "—",
+          gp(w.system, "ap") ?? "—",
+          gp(w.system, "equipped") ? "Oui" : "Non"
+        ]);
+        md += renderTableOrList(headers, rows, flavor);
+      }
     }
 
     if (armors.length) {
       md += `### Armures / Boucliers\n\n`;
-      const headers = ["Nom", "Armure", "Équipée"];
-      const rows = armors.map(a => [
-        a.name,
-        gp(a.system, "armor") ?? "—",
-        gp(a.system, "equipped") ? "Oui" : "Non"
-      ]);
-      md += renderTableOrList(headers, rows, flavor);
+      if (flavor === "discord") {
+        const rows = armors.map(a => `- **${a.name}** — Armure : ${gp(a.system, "armor") ?? "—"}`);
+        md += rows.join("\n") + "\n\n";
+      } else {
+        const headers = ["Nom", "Armure", "Équipée"];
+        const rows = armors.map(a => [
+          a.name,
+          gp(a.system, "armor") ?? "—",
+          gp(a.system, "equipped") ? "Oui" : "Non"
+        ]);
+        md += renderTableOrList(headers, rows, flavor);
+      }
     }
 
     if (misc.length) {
       md += `### Divers\n\n`;
-      const headers = ["Nom", "Quantité", "Poids"];
-      const rows = misc.map(g => [
-        g.name,
-        gp(g.system, "quantity") ?? 1,
-        gp(g.system, "weight") ?? "—"
-      ]);
-      md += renderTableOrList(headers, rows, flavor);
+      if (flavor === "discord") {
+        const rows = misc.map(g => {
+          const qty = gp(g.system, "quantity") ?? 1;
+          const weight = gp(g.system, "weight");
+          const charges = g.type === "consumable" ? getCharges(g) : null;
+          const parts = [];
+          if (Number(qty) !== 1) parts.push(`Quantité : ${qty}`);
+          if (weight !== undefined && weight !== null && Number(weight) !== 0) {
+            parts.push(`Poids : ${weight}`);
+          }
+          if (charges !== null) parts.push(`Charges : ${charges}`);
+          return `- **${g.name}**${parts.length ? ` — ${parts.join(", ")}` : ""}`;
+        });
+        md += rows.join("\n") + "\n\n";
+      } else {
+        const headers = ["Nom", "Quantité", "Poids", "Charges"];
+        const rows = misc.map(g => [
+          g.name,
+          gp(g.system, "quantity") ?? 1,
+          gp(g.system, "weight") ?? "—",
+          g.type === "consumable" ? (getCharges(g) ?? "—") : "—"
+        ]);
+        md += renderTableOrList(headers, rows, flavor);
+      }
     }
+  }
+
+  // ------------------------------------------------------------
+  // Filet de sécurité : tout type d'objet non explicitement géré
+  // ci-dessus (au cas où le nom réel du type "Ascendance" ou
+  // "Capacité spéciale" différerait des candidats testés plus haut).
+  // Les items de type "action" sont volontairement ignorés (aucun
+  // intérêt pour une fiche exportée). Rien d'autre n'est donc perdu
+  // silencieusement.
+  // ------------------------------------------------------------
+  const knownItemTypes = new Set([
+    "skill", "edge", "hindrance", "power",
+    "gear", "weapon", "armor", "shield", "consumable",
+    "ancestry", "action", ...abilityTypeCandidates
+  ]);
+  const otherItems = actor.items
+    .filter(i => !knownItemTypes.has(i.type))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (otherItems.length) {
+    md += `## Autres éléments\n\n`;
+    md += `_Objets d'un type non géré explicitement par ce script (vérifiez s'il s'agit de capacités spéciales, d'un module tiers, etc.) :_\n\n`;
+    md += otherItems.map(o => `- ${o.name} (type : \`${o.type}\`)`).join("\n") + "\n\n";
   }
 
   // ------------------------------------------------------------
