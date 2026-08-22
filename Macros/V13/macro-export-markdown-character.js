@@ -1,7 +1,7 @@
 /**
  * MACRO FOUNDRY VTT — Export fiche de personnage (PJ) SWADE en Markdown
  * ------------------------------------------------------------
- * Version : 1.1.2
+ * Version : 1.1.3
  * ------------------------------------------------------------
  * Compatible SWADE system v6+ (ApplicationV2 sheets).
  * Limité aux Personnages Joueurs (actor.type === "character") pour le moment.
@@ -332,18 +332,21 @@
   if (conviction !== undefined) md += `- **Conviction :** ${conviction}\n`;
 
   const paceGround = firstDefined(
-    gp(sys, "pace.ground.value"), gp(sys, "pace.ground"), gp(sys, "pace.base"),
+    gp(sys, "pace.ground"), gp(sys, "pace.default"),
+    gp(sys, "pace.ground.value"), gp(sys, "pace.base"),
     gp(sys, "stats.speed.adjusted"), gp(sys, "stats.speed.value")
   );
-  const paceSwim = firstDefined(gp(sys, "pace.swim.value"), gp(sys, "pace.swim"));
-  const paceFly = firstDefined(gp(sys, "pace.fly.value"), gp(sys, "pace.fly"));
-  const paceBurrow = firstDefined(gp(sys, "pace.burrow.value"), gp(sys, "pace.burrow"));
+  const paceSwim = firstDefined(gp(sys, "pace.swim"), gp(sys, "pace.swim.value"));
+  const paceFly = firstDefined(gp(sys, "pace.fly"), gp(sys, "pace.fly.value"));
+  const paceBurrow = firstDefined(gp(sys, "pace.burrow"), gp(sys, "pace.burrow.value"));
 
   const runningDieSides = firstDefined(
-    gp(sys, "pace.runningDie.sides"), gp(sys, "stats.runningDie.sides"), gp(sys, "runningDie.sides")
+    gp(sys, "pace.running.die"), gp(sys, "pace.runningDie.sides"),
+    gp(sys, "stats.runningDie.sides"), gp(sys, "runningDie.sides")
   );
   const runningDieMod = firstDefined(
-    gp(sys, "pace.runningDie.mod"), gp(sys, "stats.runningDie.mod"), gp(sys, "runningDie.mod"), 0
+    gp(sys, "pace.running.mod"), gp(sys, "pace.runningDie.mod"),
+    gp(sys, "stats.runningDie.mod"), gp(sys, "runningDie.mod"), 0
   ) ?? 0;
   const runningDieLabel = runningDieSides
     ? `d${runningDieSides}${runningDieMod > 0 ? "+" + runningDieMod : runningDieMod < 0 ? runningDieMod : ""}`
