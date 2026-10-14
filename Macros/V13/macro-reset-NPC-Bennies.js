@@ -1,6 +1,6 @@
-// Reset Jetons (Bennies) au max — v1.3
+// Reset Jetons (Bennies) au max — v1.4
 // Cible : PNJ Jokers + PJ qui ne sont le personnage attitré d'aucun joueur
-// Couvre : acteurs du monde (et tokens liés) + tokens non liés de toutes les scènes
+// PNJ : max lu sur la valeur stockée (celle de la feuille), pas la valeur dérivée
 
 if (!game.user.isGM) {
   ui.notifications.warn("Macro réservée au MJ.");
@@ -10,7 +10,6 @@ if (!game.user.isGM) {
 const updated = [];
 const skipped = [];
 
-// IDs des personnages attitrés des joueurs (Configuration du joueur > Personnage)
 const assignedIds = new Set(
   game.users.filter(u => !u.isGM && u.character).map(u => u.character.id)
 );
@@ -22,48 +21,56 @@ const isTarget = (a) => {
   return false;
 };
 
-const getMax = (a) => {
-  const max = Number(a.system?.bennies?.max);
-  return Number.isFinite(max) ? max : null;
+const toNum = (v) => (Number.isFinite(Number(v)) && v !== null && v !== "" ? Number(v) : null);
+
+// Max de référence : stocké pour les PNJ, dérivé pour les PJ
+const maxForActor = (a) => a.type === "npc"
+  ? toNum(a._source?.system?.bennies?.max)
+  : toNum(a.system?.bennies?.max);
+
+const maxForToken = (tokenDoc, a) => {
+  if (a.type !== "npc") return toNum(a.system?.bennies?.max);
+  const fromDelta = tokenDoc.delta?._source?.system?.bennies?.max;
+  return toNum(fromDelta ?? tokenDoc.baseActor?._source?.system?.bennies?.max);
 };
 
 const tag = (a) => (a.type === "character" ? "PJ" : "PNJ");
 
-// 1. Acteurs du monde (fiches source + tokens liés) — mise à jour groupée
+// 1. Acteurs du monde (fiches source + tokens liés)
 const actorUpdates = [];
 for (const actor of game.actors) {
   if (!isTarget(actor)) continue;
   const label = `${actor.name} [${tag(actor)}]`;
-  const max = getMax(actor);
+  const max = maxForActor(actor);
   if (max === null) { skipped.push(label); continue; }
-  if (actor.system.bennies.value === max) continue; // déjà au max
+  if (actor.system.bennies.value === max) continue;
   actorUpdates.push({ _id: actor.id, "system.bennies.value": max });
-  updated.push(label);
+  updated.push(`${label} → ${max}`);
 }
 if (actorUpdates.length) await Actor.updateDocuments(actorUpdates);
 
-// 2. Tokens non liés : mise à jour du delta, groupée par scène
+// 2. Tokens non liés
 for (const scene of game.scenes) {
   const tokenUpdates = [];
   for (const tokenDoc of scene.tokens) {
-    if (tokenDoc.actorLink) continue; // couvert en 1
-    const actor = tokenDoc.actor;     // acteur synthétique (base + delta)
+    if (tokenDoc.actorLink) continue;
+    const actor = tokenDoc.actor;
     if (!actor) continue;
-    // Pour un token non lié, l'attitré se juge sur l'acteur de base
     if (actor.type === "character" && assignedIds.has(tokenDoc.actorId)) continue;
     if (!isTarget(actor)) continue;
     const label = `${tokenDoc.name} [${tag(actor)}] (scène : ${scene.name})`;
-    const max = getMax(actor);
+    const max = maxForToken(tokenDoc, actor);
     if (max === null) { skipped.push(label); continue; }
     if (actor.system.bennies.value === max) continue;
     tokenUpdates.push({ _id: tokenDoc.id, "delta.system.bennies.value": max });
-    updated.push(label);
+    updated.push(`${label} → ${max}`);
   }
   if (tokenUpdates.length) await scene.updateEmbeddedDocuments("Token", tokenUpdates);
 }
 
-console.log("Jetons remis au max :", updated);
-if (skipped.length) console.warn("Ignorés (pas de max défini) :", skipped);
+// Journal texte uniquement (pas d'objets dépliables)
+if (updated.length) console.log(`Jetons remis au max (${updated.length}) :\n` + updated.join("\n"));
+if (skipped.length) console.warn(`Ignorés, pas de max défini (${skipped.length}) :\n` + skipped.join("\n"));
 
 const nPJ = updated.filter(l => l.includes("[PJ]")).length;
 const nPNJ = updated.length - nPJ;
