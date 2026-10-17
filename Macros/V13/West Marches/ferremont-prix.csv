@@ -1,0 +1,111 @@
+# Boutique de Ferremont — liste de prix
+# Séparateur : point-virgule. Les lignes commençant par # sont ignorées.
+# categorie : equipement | animaux | armes-armures
+# groupe : sous-titre d'affichage dans la boutique (facultatif)
+# prix : en Silver Coin ($) — décimales avec point ou virgule, espaces tolérés (5 000,00)
+# niveau : nombre de progressions requis (1 = Novice, 4 = Aguerri, 8 = Vétéran, 12 = Héroïque, 16 = Légendaire)
+
+categorie;groupe;nom;prix;niveau
+equipement;;Bandoulière;1.00;1
+equipement;;Bière (Gallon - 5l);2.00;1
+equipement;;Bougie;0.25;1
+equipement;;Bouteille;2.00;1
+equipement;;Briquet amadou;1.00;1
+equipement;;Caisse;10.00;1
+equipement;;Chaine (5 cases / 10m);80.00;1
+equipement;;Chariot;30.00;3
+equipement;;Chausse-trapes;4.00;1
+equipement;;Cloche;4.00;1
+equipement;;Coffre (Grand);40.00;1
+equipement;;Coffre (petit);4.00;1
+equipement;;Corde (10");1.00;1
+equipement;;Craie (Boite de 12);5.00;1
+equipement;;Encre (flacon);70.00;1
+equipement;;Flasque (métal);1.00;1
+equipement;;Grappin;4.00;1
+equipement;;Habits standard;1.00;1
+equipement;;Huile (Pinte);2.00;1
+equipement;;Instrument de musique (banal);15.00;1
+equipement;;Journal (vierge);10.00;1
+equipement;;Lanterne;25.00;1
+equipement;;Lanterne (4+4" de lumière);16.00;1
+equipement;;Livre;200.00;5
+equipement;;Loupe;300.00;1
+equipement;;Lunette;50.00;1
+equipement;;Marteau;1.00;1
+equipement;;Mirroir (petit en acier);20.00;1
+equipement;;Panier;0.50;1
+equipement;;Pied-de-biche;4.00;1
+equipement;;Pochette ceinture;2.00;1
+equipement;;Ration de base (1 jour);0.50;1
+equipement;;Ration de luxe (1 jour);1.00;1
+equipement;;Sablier;50.00;1
+equipement;;Sac d'alchimiste;50.00;1
+equipement;;Sac de couchage;1.00;1
+equipement;;Sac à dos;3.00;1
+equipement;;Sac à dos (vide);4.00;1
+equipement;;Toile (m²);1.00;1
+equipement;;Tonneau;2.00;1
+equipement;;Torch (4" de lumière);1.00;1
+equipement;;Trousse d'artisan;200.00;1
+equipement;;Trousse de premiers secours;100.00;1
+equipement;;Voiture/Carrosse;400.00;5
+equipement;;Étui carte ou parchemin;3.00;1
+equipement;;Parchemin (feuille);5.00;1
+equipement;;Pioche (Mineur);5.00;1
+equipement;;Pot (Acier);2.00;1
+equipement;;Plume;1.00;1
+equipement;;Barque;200.00;5
+equipement;;Sac (Grand);1.00;1
+equipement;;Sac (Petit);0.50;1
+equipement;;Sacoches;4.00;1
+equipement;;Fourreau;20.00;1
+equipement;;Baton de Cire à scellé;2.00;1
+equipement;;Kit de couture;10.00;1
+equipement;;Pelle (Petite);4.00;1
+equipement;;Savon;2.00;1
+equipement;;Piolet/Piton (10);2.00;1
+equipement;;Longue-Vue;5000.00;5
+equipement;;Equipement pour cheval;40.00;1
+equipement;;Chope (Porcelaine);2.00;1
+equipement;;Tente bivouac (2 pers);20.00;1
+equipement;;Tente (6 pers);60.00;1
+equipement;;Tente pavillon (15 pers);300.00;1
+equipement;;Outils de voleur;90.00;1
+equipement;;Kit de fabrication de pièges;200.00;5
+equipement;;Outre (vide);1.00;1
+equipement;;Brouette;20.00;1
+equipement;;Pierre à aiguiser;1.00;1
+animaux;;Mule;10.00;1
+animaux;;Chien de Garde;30.00;1
+animaux;;Cheval de voyage;95.00;5
+animaux;;Poney;38.00;3
+armes-armures;Armures;Cape avec capuche (+1);5.00;1
+armes-armures;Armures;Jambière (+1);7.00;1
+armes-armures;Armures;Tunique (+1);12.00;1
+armes-armures;Armures;Robe à Capuche (+1);10.00;1
+armes-armures;Armures;Veste ou tunique de Cuir (+2);30.00;1
+armes-armures;Armures;Jambière de cuir (+2);30.00;1
+armes-armures;Armures;Casque en cuir (+2);15.00;1
+armes-armures;Armures;Chemise de maille (+3);150.00;1
+armes-armures;Armures;Pantalon de maille (+3);150.00;1
+armes-armures;Armures;Casque en Fer léger (+3);75.00;1
+armes-armures;Boucliers;Targes (Parade +1);10.00;1
+armes-armures;Boucliers;Bouclier rond (Parade +1);20.00;1
+armes-armures;Boucliers;Grand Bouclier;50.00;1
+armes-armures;Armes de contact;Hache (1 main - Dg d6);6.00;1
+armes-armures;Armes de contact;Hache de Bataille (Dg d8);20.00;1
+armes-armures;Armes de contact;Baton Ferré (Dg d6);4.00;1
+armes-armures;Armes de contact;Dague (Dg d4);4.00;1
+armes-armures;Armes de contact;Masse (Dg d6);10.00;1
+armes-armures;Armes de contact;Etoile du Matin (Dg d6);20.00;1
+armes-armures;Armes de contact;Epieu (Dg d6 - 2 Mains  Allonge);3.00;1
+armes-armures;Armes de contact;Grand Baton (Dg d4);2.00;1
+armes-armures;Armes de contact;Epée longue (Dg d8);40.00;1
+armes-armures;Armes de contact;Epée Courte (Dg d6);20.00;1
+armes-armures;Armes de contact;Marteau de Guerre (Dg d6);25.00;1
+armes-armures;Armes à distance;Hachette de lancé (d6);15.00;1
+armes-armures;Armes à distance;Arc long (2d6);100.00;1
+armes-armures;Armes à distance;Arc court (2d6);45.00;1
+armes-armures;Armes à distance;Javelot (d6);5.00;1
+armes-armures;Armes à distance;Fronde (d4);2.00;1
