@@ -1,6 +1,6 @@
 // =====================================================================
 // Compteur de rounds hors combat — SWADE VF
-// Version 1.1.0
+// Version 1.1.1
 // ---------------------------------------------------------------------
 // • MJ : lance la macro → panneau de contrôle (+1, −, réglages, messages).
 //   Relancer la macro ferme le compteur (et le masque chez les joueurs).
@@ -13,7 +13,7 @@
 const SWRC_MACRO = this; // document Macro courant (sert au lien d'invitation)
 
 (async () => {
-  const VERSION = "1.1.0";
+  const VERSION = "1.1.1";
   const ID = "swrc-panel";
   const STYLE_ID = "swrc-style";
   const FLAG_SCOPE = "world";
@@ -296,10 +296,29 @@ const SWRC_MACRO = this; // document Macro courant (sert au lien d'invitation)
   const macroUuid = (SWRC_MACRO?.documentName === "Macro" && !SWRC_MACRO.pack) ? SWRC_MACRO.uuid : null;
   const invitePlayers = async () => {
     if (!macroUuid) return ui.notifications.warn("Lien impossible : la macro doit être enregistrée dans le monde (pas exécutée depuis un compendium).");
-    const missing = game.users.filter((u) => !u.isGM && !SWRC_MACRO.testUserPermission(u, "OBSERVER"));
+    const players = game.users.filter((u) => !u.isGM);
+
+    // 1) Droit Observateur sur la macro (sinon le lien s'affiche « Hidden » chez les joueurs)
+    const OBS = CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER;
+    const missing = players.filter((u) => !SWRC_MACRO.testUserPermission(u, "OBSERVER"));
     if (missing.length) {
-      ui.notifications.warn(`Ces joueurs n'ont pas les droits Observateur sur la macro : ${missing.map((u) => u.name).join(", ")}.`);
+      const DialogV2 = foundry.applications?.api?.DialogV2;
+      const content = `<p>Ces joueurs ne peuvent pas voir la macro (le lien apparaîtra « Hidden ») :</p>
+        <p><strong>${missing.map((u) => esc(u.name)).join(", ")}</strong></p>
+        <p>Donner le droit <strong>Observateur</strong> sur la macro à tous les joueurs ?</p>`;
+      const ok = DialogV2
+        ? await DialogV2.confirm({ window: { title: "Compteur de rounds" }, content })
+        : await Dialog.confirm({ title: "Compteur de rounds", content });
+      if (!ok) return;
+      await SWRC_MACRO.update({ "ownership.default": Math.max(SWRC_MACRO.ownership?.default ?? 0, OBS) });
     }
+
+    // 2) Permission de rôle « Utiliser des macros de script »
+    const noScript = players.filter((u) => !u.can("MACRO_SCRIPT"));
+    if (noScript.length) {
+      ui.notifications.warn(`Sans la permission « Utiliser des macros de script », le lien ne fera rien pour : ${noScript.map((u) => u.name).join(", ")}. (Paramètres → Configurer les permissions)`, { permanent: true });
+    }
+
     return ChatMessage.create({
       content: `<p>Le MJ affiche un compteur de rounds.</p><p>@UUID[${macroUuid}]{Afficher le compteur}</p>`,
       speaker: { alias: "Compteur de rounds" }
