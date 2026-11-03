@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  *  COMBATS DE MASSE — SWADE (Foundry VTT)
- *  Version : 2.6.0 — 2026-08-21
+ *  Version : 2.9.0 — 2026-11-03
  * ============================================================================
  *  Historique résumé (voir les échanges précédents pour le détail complet) :
  *    1.x — Premières versions : état partagé, socketlib, UI MJ/joueur.
@@ -52,6 +52,65 @@
  *              - Ajout d'un petit effet visuel maison lors de la dépense
  *                d'un Jeton (l'animation de swade-tools reste spécifique à
  *                ce module tiers et n'a pas pu être reproduite ici).
+ *    2.7.0 — Corrections d'usage :
+ *              - Dépense de Jeton : tentative de plusieurs points d'entrée
+ *                natifs plausibles (actor.spendBenny, game.swade.bennies...)
+ *                avant de retomber sur la mise à jour directe + notre
+ *                propre effet visuel — sans garantie totale, l'API exacte
+ *                n'ayant pas pu être confirmée.
+ *              - Le récapitulatif de round dans le chat est reconstruit en
+ *                blocs empilés par camp (au lieu d'un tableau à 4 colonnes)
+ *                pour rester lisible dans une colonne de chat étroite ; le
+ *                statut affiche maintenant aussi les drapeaux actifs
+ *                (Fortifié, Sans peur, Acculé) et pas seulement la déroute.
+ *              - Amélioration de la lisibilité générale (taille de police,
+ *                interlignage) et des boîtes de dialogue de la macro
+ *                elle-même (fin de combat, choix de Prouesse) — celles du
+ *                système SWADE restent hors de notre contrôle.
+ *    2.7.1 — Le +1px précédent ne se voyait quasiment pas et ne touchait
+ *            pas les boutons/inputs (styles Foundry par défaut plus
+ *            prioritaires). Passe visuelle bien plus marquée sur toute la
+ *            fenêtre de l'outil : police et interligne nettement plus
+ *            grands (avec !important pour passer devant les styles par
+ *            défaut), titres de section soulignés, bouton d'action
+ *            principal en rouge plein, cartes de camp avec ombre légère,
+ *            fenêtre élargie (580px) pour accueillir tout ça sans que le
+ *            texte ne se tasse.
+ *
+ *    2.8.0 — Jets délégués aux joueurs + ergonomie petits écrans :
+ *              - Cause du "la fenêtre de jet n'apparaît pas chez le
+ *                joueur" : si le joueur n'a pas exécuté la macro depuis le
+ *                chargement de sa page, rien n'écoute chez lui et le MJ
+ *                attendait sans fin. Le MJ vérifie maintenant d'abord que
+ *                le joueur répond (ping) ; sinon un message lui est
+ *                chuchoté et le MJ peut réessayer, lancer à sa place ou
+ *                annuler. Délai max de 5 min sur un jet délégué.
+ *              - Côté joueur : notification sonore + petite fenêtre "Le MJ
+ *                demande un jet" avant d'ouvrir la boîte de dialogue SWADE.
+ *              - Les relais socketlib sont désormais enregistrés nom par
+ *                nom (un nouveau relais comme mc_ping est bien ajouté même
+ *                si la session avait déjà chargé une ancienne version).
+ *              - IHM compacte : tableau de bord des 2 camps (barre de
+ *                marqueurs, drapeaux en icônes, bonus en attente en
+ *                pastille), participants sur une ligne, confirmation de jet
+ *                en icônes, aides en infobulle ⓘ, outils et journal repliés
+ *                (état mémorisé), fenêtre 440 px redimensionnable et mise
+ *                en page adaptative (2 colonnes si large, 1 si étroit).
+ *              - Petites boîtes de dialogue de la macro en DialogV2
+ *                (repli Dialog V1).
+ *
+ *    2.9.0 — Mode spectateur pour les joueurs :
+ *              - Au démarrage d'un combat (et via 🧰 Outils > "📣 Inviter
+ *                les joueurs à suivre"), une carte est postée dans le chat
+ *                avec un lien vers la macro : un clic l'exécute et ouvre le
+ *                panneau de suivi. Chez les joueurs qui ont déjà la macro
+ *                chargée, la fenêtre s'ouvre directement.
+ *              - Panneau joueur en lecture seule : plus d'ajout/retrait de
+ *                participants (le MJ décide) ; seul reste le jet de leurs
+ *                propres personnages. Ligne d'état de la phase en cours.
+ *              - Rafraîchissement en direct aussi au tout premier
+ *                enregistrement de l'état (hook createSetting, en plus de
+ *                updateSetting).
  *
  *  NOTE sur les avertissements de la console : les messages "The V1
  *  Application framework is deprecated" et "You are accessing the global
@@ -83,11 +142,16 @@
 
 (async () => {
 
+  // Document Macro en cours d'exécution (dans une macro script, `this` est la
+  // Macro ; la fonction fléchée en hérite). Sert à poster un lien cliquable
+  // vers cette macro dans le chat.
+  const MC_MACRO_DOC = (typeof Macro !== "undefined" && this instanceof Macro) ? this : null;
+
   // ==========================================================================
   // 0. CONFIGURATION — à adapter si besoin
   // ==========================================================================
   const MC_CONFIG = {
-    VERSION: "2.6.0",
+    VERSION: "2.9.0",
     NAMESPACE: "mass-combat-macro",
     // Noms de compétences en ANGLAIS (ceux du système SWADE de base) : ce
     // sont eux qui doivent correspondre aux Items de compétence sur les
@@ -208,18 +272,25 @@
     return;
   }
 
-  if (!window.__mcSocketHandlersRegistered) {
-    mcSocket.register("mc_applyPatch", async (patchFn, args) => {
-      return await window.__mcHandlers.applyPatch(patchFn, args);
-    });
-    mcSocket.register("mc_requestRoll", async (payload) => {
-      return await window.__mcHandlers.requestRoll(payload);
-    });
-    mcSocket.register("mc_spendBennyAndReroll", async (payload) => {
-      return await window.__mcHandlers.spendBennyAndReroll(payload);
-    });
-    window.__mcSocketHandlersRegistered = true;
+  // Enregistrement NOM PAR NOM (et non plus "tout ou rien" derrière un seul
+  // drapeau) : ainsi une nouvelle version qui ajoute un relais (ex :
+  // mc_ping) l'enregistre bien, même si la session avait déjà chargé une
+  // version plus ancienne de la macro.
+  window.__mcRegistered ??= new Set(window.__mcSocketHandlersRegistered
+    ? ["mc_applyPatch", "mc_requestRoll", "mc_spendBennyAndReroll"] : []);
+  const MC_RELAYS = {
+    mc_applyPatch: async (patchFn, args) => await window.__mcHandlers.applyPatch(patchFn, args),
+    mc_requestRoll: async (payload) => await window.__mcHandlers.requestRoll(payload),
+    mc_spendBennyAndReroll: async (payload) => await window.__mcHandlers.spendBennyAndReroll(payload),
+    mc_ping: async () => await window.__mcHandlers.ping(),
+    mc_openView: async () => await window.__mcHandlers.openView(),
+  };
+  for (const [name, relay] of Object.entries(MC_RELAYS)) {
+    if (window.__mcRegistered.has(name)) continue;
+    mcSocket.register(name, relay);
+    window.__mcRegistered.add(name);
   }
+  window.__mcSocketHandlersRegistered = true;
 
   // Toujours réécrit à chaque exécution : c'est CETTE partie qui porte le
   // code réellement à jour, même si l'enregistrement socketlib ci-dessus
@@ -239,11 +310,28 @@
         return { ok: false, error: err.message };
       }
     },
+    async openView() {
+      // Le MJ invite à suivre : on ouvre (ou ramène au premier plan) la
+      // fenêtre chez les joueurs qui ont déjà la macro chargée.
+      if (game.user.isGM) return false;
+      window.__mcApp?.render(true, { focus: true });
+      return true;
+    },
+    async ping() {
+      // Permet au MJ de vérifier, AVANT de déléguer un jet, que ce joueur a
+      // bien la macro chargée dans sa page (sinon personne ne répondrait et
+      // le MJ attendrait indéfiniment).
+      return { version: MC_CONFIG.VERSION, user: game.user.name };
+    },
     async requestRoll(payload) {
-      // Exécuté sur le client du JOUEUR ciblé : ouvre SA boîte de dialogue
-      // standard SWADE, sur SON écran.
+      // Exécuté sur le client du JOUEUR ciblé. On le PRÉVIENT d'abord
+      // (petite fenêtre + son), puis on ouvre SA boîte de dialogue standard
+      // SWADE sur SON écran.
       const { actorId, skillName, attributeKey, mods, kind, flavor } = payload;
       const actor = game.actors.get(actorId);
+      const what = kind === "attribute" ? "Âme" : (skillName === UNSKILLED_VALUE ? "Unskilled attempt" : skillName);
+      const go = await askPlayerToRoll(actor, flavor, what);
+      if (!go) return null;
       if (kind === "attribute") return await rollAttributeTotal(actor, attributeKey, mods || [], flavor);
       return await rollSkillTotal(actor, skillName, mods || [], flavor);
     },
@@ -253,6 +341,8 @@
       const { actorId, currentTotal, skillName, attributeKey, mods, kind, flavor } = payload;
       const actor = game.actors.get(actorId);
       if (!actor) return currentTotal;
+      const go = await askPlayerToRoll(actor, `${flavor} — relance avec un Jeton`, kind === "attribute" ? "Âme" : skillName);
+      if (!go) return currentTotal;
       return await spendBennyAndReroll(actor, currentTotal, async () => {
         if (kind === "attribute") return await rollAttributeTotal(actor, attributeKey, mods || [], flavor);
         return await rollSkillTotal(actor, skillName, mods || [], flavor);
@@ -585,6 +675,169 @@
     return game.users.find(u => u.active && !u.isGM && actor.testUserPermission?.(u, "OWNER"));
   }
 
+  // --------------------------------------------------------------------------
+  //  Petites boîtes de choix de la macro (DialogV2 si dispo, Dialog V1 sinon)
+  // --------------------------------------------------------------------------
+  async function mcChoose({ title, content, buttons, defaultAction }) {
+    const DV2 = foundry?.applications?.api?.DialogV2;
+    if (DV2?.wait) {
+      try {
+        const res = await DV2.wait({
+          window: { title },
+          classes: ["mc-dialog"],
+          content,
+          buttons: buttons.map(b => ({ action: b.action, label: b.label, default: b.action === defaultAction })),
+          rejectClose: false,
+        });
+        return res ?? null;
+      } catch (err) {
+        console.warn("Combats de masse | DialogV2 indisponible, repli sur Dialog V1", err);
+      }
+    }
+    return await new Promise(resolve => {
+      new Dialog({
+        title, content,
+        buttons: Object.fromEntries(buttons.map(b => [b.action, { label: b.label, callback: () => resolve(b.action) }])),
+        default: defaultAction,
+        close: () => resolve(null),
+      }, { classes: ["mc-dialog"] }).render(true);
+    });
+  }
+
+  function mcPlayNotify() {
+    try {
+      const AH = foundry?.audio?.AudioHelper ?? globalThis.AudioHelper;
+      AH?.play({ src: CONFIG.sounds?.notification ?? "sounds/notify.wav", volume: 0.8, autoplay: true, loop: false }, false);
+    } catch (err) { /* son facultatif */ }
+  }
+
+  /** Côté JOUEUR : prévient qu'un jet est demandé, avant d'ouvrir la boîte
+   *  de dialogue standard (sinon elle peut passer inaperçue, ou s'ouvrir
+   *  derrière d'autres fenêtres). */
+  async function askPlayerToRoll(actor, flavor, what) {
+    mcPlayNotify();
+    const choice = await mcChoose({
+      title: "Combats de masse — jet demandé",
+      content: `<div class="mc-dialog-body">
+        <p class="mc-dialog-lead">🎲 Le MJ demande un jet</p>
+        <p><strong>${actor?.name ?? "?"}</strong> — ${what ?? ""}</p>
+        <p class="mc-dialog-sub">${flavor ?? ""}</p>
+      </div>`,
+      buttons: [{ action: "roll", label: "🎲 Ouvrir le jet" }, { action: "skip", label: "Refuser" }],
+      defaultAction: "roll",
+    });
+    return choice === "roll";
+  }
+
+  const MC_TIMEOUT = Symbol("timeout");
+  function withTimeout(promise, ms) {
+    return Promise.race([
+      Promise.resolve(promise).catch(err => { console.warn("Combats de masse | appel socket en échec", err); return MC_TIMEOUT; }),
+      new Promise(resolve => setTimeout(() => resolve(MC_TIMEOUT), ms)),
+    ]);
+  }
+
+  /** Le joueur a-t-il la macro chargée dans sa page ? (réponse en < 2,5 s) */
+  async function pingUser(userId) {
+    const pong = await withTimeout(mcSocket.executeAsUser("mc_ping", userId), 2500);
+    return pong === MC_TIMEOUT ? null : pong;
+  }
+
+  /**
+   * Délégation d'un jet au joueur propriétaire de l'acteur.
+   *  - Retourne { local: true } si le jet doit se faire sur CE client (pas de
+   *    joueur connecté propriétaire, ou c'est nous, ou le MJ choisit de
+   *    lancer à sa place).
+   *  - Sinon { local: false, result } — result = null si annulé / sans
+   *    réponse.
+   * Cause n°1 de "la fenêtre de jet n'apparaît pas chez le joueur" : le
+   * joueur n'a pas exécuté la macro depuis le chargement de sa page, donc
+   * aucun code n'écoute chez lui. On le détecte maintenant (ping) au lieu
+   * d'attendre indéfiniment.
+   */
+  async function delegateToOwner(actor, relayName, payload) {
+    const owner = findOwningUser(actor);
+    if (!owner || owner.id === game.user.id) return { local: true };
+
+    let warned = false;
+    while (true) {
+      const pong = await pingUser(owner.id);
+      if (pong) {
+        if (pong.version !== MC_CONFIG.VERSION) {
+          ui.notifications.warn(`${owner.name} utilise la v${pong.version} de la macro (toi : v${MC_CONFIG.VERSION}) — demande-lui de la relancer.`);
+        }
+        break;
+      }
+      if (!warned) {
+        warned = true;
+        await ChatMessage.create({
+          content: `<div class="mc-chat-call">🎲 <strong>${owner.name}</strong> : le MJ attend ton jet pour <strong>${actor.name}</strong>. Ouvre (ou relance) la macro <em>Combats de masse</em>.</div>`,
+          whisper: [owner.id, ...game.users.filter(u => u.isGM).map(u => u.id)],
+        });
+      }
+      const choice = await mcChoose({
+        title: "Joueur injoignable",
+        content: `<div class="mc-dialog-body">
+          <p class="mc-dialog-lead">${owner.name} n'a pas la macro ouverte</p>
+          <p>Il faut qu'il exécute la macro <em>Combats de masse</em> au moins une fois depuis le chargement de sa page (après un F5, il faut la relancer). Un message lui a été chuchoté.</p>
+        </div>`,
+        buttons: [
+          { action: "retry", label: "🔁 Réessayer" },
+          { action: "local", label: "🎲 Lancer à sa place" },
+          { action: "cancel", label: "Annuler" },
+        ],
+        defaultAction: "retry",
+      });
+      if (choice === "local") return { local: true };
+      if (choice !== "retry") return { local: false, result: null };
+    }
+
+    ui.notifications.info(`Jet demandé à ${owner.name} (${actor.name})…`);
+    const result = await withTimeout(mcSocket.executeAsUser(relayName, owner.id, payload), 5 * 60 * 1000);
+    if (result === MC_TIMEOUT) {
+      ui.notifications.warn(`Pas de réponse de ${owner.name} — jet annulé.`);
+      return { local: false, result: null };
+    }
+    return { local: false, result };
+  }
+
+  /** Retrouve la Macro (pour le lien) : celle en cours, sinon par contenu. */
+  function findThisMacro() {
+    if (MC_MACRO_DOC && game.macros.get(MC_MACRO_DOC.id)) return MC_MACRO_DOC;
+    return game.macros.find(m => m.type === "script" && m.command?.includes(MC_CONFIG.NAMESPACE)) ?? null;
+  }
+
+  /**
+   * MJ : invite les joueurs à suivre le combat.
+   *  - Chat : carte avec un lien vers la macro (un clic l'exécute et ouvre
+   *    le panneau spectateur).
+   *  - Les joueurs qui ont DÉJÀ la macro chargée voient la fenêtre s'ouvrir
+   *    directement.
+   */
+  async function inviteSpectators(state) {
+    const macro = findThisMacro();
+    const players = game.users.filter(u => !u.isGM);
+    const cannotSee = macro ? players.filter(u => !macro.testUserPermission(u, "LIMITED")).map(u => u.name) : [];
+    const link = macro
+      ? `@UUID[${macro.uuid}]{⚔ Suivre le combat de masse}`
+      : `<em>ouvrez la macro « Combats de masse »</em>`;
+    const camps = (state?.camps ?? []).map(c => `<span style="color:${c.color}; font-weight:bold;">${c.name}</span>`).join(" contre ");
+    await ChatMessage.create({
+      content: `<div style="border:2px solid #7a1f1f; border-radius:8px; padding:8px 10px; background:rgba(122,31,31,0.05); text-align:center;">
+        <div style="font-weight:bold; font-size:15px; margin-bottom:4px;">⚔ Combat de masse</div>
+        ${camps ? `<div style="font-size:13px; margin-bottom:6px;">${camps}</div>` : ""}
+        <div style="font-size:14px;">${link}</div>
+        <div style="font-size:11px; opacity:0.75; margin-top:4px;">Suivi en direct ; les jets de vos personnages vous seront demandés.</div>
+      </div>`,
+    });
+    try { mcSocket.executeForOthers("mc_openView"); } catch (err) { console.warn("Combats de masse | openView", err); }
+    if (!macro) {
+      ui.notifications.warn("Macro introuvable dans le monde : le message ne contient pas de lien cliquable. Range la macro dans le dossier Macros du monde.");
+    } else if (cannotSee.length) {
+      ui.notifications.warn(`Ces joueurs n'ont pas accès à la macro (droit Observateur requis) : ${cannotSee.join(", ")}.`);
+    }
+  }
+
   function buildAdditionalMods(mods) {
     return mods.map(m => ({ value: Number(m.value) || 0, label: m.label }));
   }
@@ -635,22 +888,16 @@
   /** Lance (ou délègue au joueur propriétaire) un jet de compétence. */
   async function rollForActor(actor, skillName, mods = [], flavor) {
     if (!actor) return await rollSkillTotal(null, skillName, mods, flavor);
-    const owner = findOwningUser(actor);
-    if (owner && owner.id !== game.user.id) {
-      ui.notifications.info(`En attente du jet de ${actor.name} par ${owner.name}...`);
-      return await mcSocket.executeAsUser("mc_requestRoll", owner.id, { actorId: actor.id, skillName, mods, kind: "skill", flavor });
-    }
+    const d = await delegateToOwner(actor, "mc_requestRoll", { actorId: actor.id, skillName, mods, kind: "skill", flavor });
+    if (!d.local) return d.result;
     return await rollSkillTotal(actor, skillName, mods, flavor);
   }
 
   /** Lance (ou délègue au joueur propriétaire) un jet d'attribut. */
   async function rollAttributeForActor(actor, attributeKey, mods = [], flavor) {
     if (!actor) return await rollAttributeTotal(null, attributeKey, mods, flavor);
-    const owner = findOwningUser(actor);
-    if (owner && owner.id !== game.user.id) {
-      ui.notifications.info(`En attente du jet de ${actor.name} par ${owner.name}...`);
-      return await mcSocket.executeAsUser("mc_requestRoll", owner.id, { actorId: actor.id, attributeKey, mods, kind: "attribute", flavor });
-    }
+    const d = await delegateToOwner(actor, "mc_requestRoll", { actorId: actor.id, attributeKey, mods, kind: "attribute", flavor });
+    if (!d.local) return d.result;
     return await rollAttributeTotal(actor, attributeKey, mods, flavor);
   }
 
@@ -664,11 +911,9 @@
     inputEl.value = current + roll.total;
   }
 
-  /** Petit effet visuel maison (pas de dépendance à un module tiers) pour
-   *  matérialiser la dépense d'un Jeton — l'animation "officielle" native
-   *  au clic sur la fiche semble en réalité venir de modules d'extension
-   *  (SWIM, swade-tools...), pas du système de base ; ceci est notre
-   *  propre geste, plus modeste mais indépendant de ces modules. */
+  /** Petit effet visuel maison (repli uniquement) pour matérialiser la
+   *  dépense d'un Jeton, utilisé SEULEMENT si aucune méthode native n'a pu
+   *  être appelée (voir spendActorBenny ci-dessous). */
   function showBennySpendFlourish(actorName) {
     try {
       const el = document.createElement("div");
@@ -684,6 +929,35 @@
   }
 
   /**
+   * Dépense 1 Jeton en tentant d'abord les points d'entrée NATIFS plausibles
+   * du système (ceux qu'utilisent vraisemblablement le bouton "-" de la
+   * fiche et le plateau de Jetons, qui eux déclenchent bien l'animation).
+   * On tente plusieurs noms de méthode par sécurité (l'API exacte n'a pas
+   * pu être confirmée sans accès direct au système) ; si aucune ne
+   * fonctionne, on retombe sur une mise à jour directe du champ + notre
+   * propre petit effet visuel de repli.
+   */
+  async function spendActorBenny(actor) {
+    const candidates = [
+      () => actor.spendBenny?.(),
+      () => game.swade?.bennies?.spend?.(actor),
+      () => game.swade?.spendBenny?.(actor),
+    ];
+    for (const attempt of candidates) {
+      try {
+        const result = await attempt();
+        if (result !== undefined && result !== false) return { ok: true, native: true };
+      } catch (err) {
+        console.warn("Combats de masse | tentative de dépense native de Jeton échouée, repli sur la suivante.", err);
+      }
+    }
+    const bennies = actor.system?.bennies;
+    if (!bennies || (bennies.value ?? 0) <= 0) return { ok: false, native: false };
+    await actor.update({ "system.bennies.value": bennies.value - 1 });
+    return { ok: true, native: false };
+  }
+
+  /**
    * Dépense 1 Jeton (Benny) de l'acteur et relance ENTIÈREMENT le jet
    * (nouvelle boîte de dialogue standard, tous les dés relancés depuis
    * zéro — conforme à la règle), puis garde le MEILLEUR des deux totaux.
@@ -692,13 +966,16 @@
    */
   async function spendBennyAndReroll(actor, currentTotal, rollFn) {
     if (!actor) return currentTotal;
-    const bennies = actor.system?.bennies;
-    if (!bennies || (bennies.value ?? 0) <= 0) {
+    if ((actor.system?.bennies?.value ?? 0) <= 0) {
       ui.notifications.warn(`${actor.name} n'a plus de Jeton disponible.`);
       return currentTotal;
     }
-    await actor.update({ "system.bennies.value": bennies.value - 1 });
-    showBennySpendFlourish(actor.name);
+    const { ok, native } = await spendActorBenny(actor);
+    if (!ok) {
+      ui.notifications.warn(`${actor.name} n'a plus de Jeton disponible.`);
+      return currentTotal;
+    }
+    if (!native) showBennySpendFlourish(actor.name);
     const rerollTotal = await rollFn();
     if (rerollTotal === null) return currentTotal; // relance annulée (dialogue fermé)
     const kept = Math.max(currentTotal, rerollTotal);
@@ -710,11 +987,8 @@
    *  relance le jet depuis zéro, en gardant le meilleur des deux totaux. */
   async function rerollForActor(actor, currentTotal, rollSpec) {
     if (!actor) return currentTotal;
-    const owner = findOwningUser(actor);
-    if (owner && owner.id !== game.user.id) {
-      ui.notifications.info(`En attente de la relance de ${actor.name} par ${owner.name}...`);
-      return await mcSocket.executeAsUser("mc_spendBennyAndReroll", owner.id, { actorId: actor.id, currentTotal, ...rollSpec });
-    }
+    const d = await delegateToOwner(actor, "mc_spendBennyAndReroll", { actorId: actor.id, currentTotal, ...rollSpec });
+    if (!d.local) return d.result ?? currentTotal;
     return await spendBennyAndReroll(actor, currentTotal, async () => {
       if (rollSpec.kind === "attribute") return await rollAttributeTotal(actor, rollSpec.attributeKey, rollSpec.mods || [], rollSpec.flavor);
       return await rollSkillTotal(actor, rollSpec.skillName, rollSpec.mods || [], rollSpec.flavor);
@@ -746,310 +1020,314 @@
   // 6. TEMPLATES (Handlebars compilés à la volée — pas de fichier .hbs séparé)
   // ==========================================================================
 
+  // --------------------------------------------------------------------------
+  //  Blocs réutilisés. IHM compacte : l'essentiel visible, le reste replié
+  //  (<details>) ou en infobulle (ⓘ / title) pour tenir sur petit écran.
+  // --------------------------------------------------------------------------
+
+  // Tableau de bord des deux camps (barre de marqueurs, drapeaux en icônes,
+  // bonus en attente en pastille). `scoreCamps` = camps décorés.
+  const SCOREBOARD_BLOCK = `
+    <div class="mc-score">
+      {{#each scoreCamps as |camp|}}
+      <div class="mc-chip {{#if camp.routed}}mc-chip-routed{{/if}}" style="--camp: {{camp.color}}">
+        <div class="mc-chip-head">
+          <span class="mc-chip-name" title="{{camp.name}}">{{camp.name}}</span>
+          {{#if camp.hidden}}
+          <span class="mc-chip-count">?</span>
+          {{else}}
+          <span class="mc-chip-count"><b>{{camp.forceMarkers}}</b>/{{camp.startMarkers}}</span>
+          {{/if}}
+        </div>
+        {{#unless camp.hidden}}
+        <div class="mc-bar"><span style="width: {{camp.pct}}%"></span></div>
+        <div class="mc-chip-tags">
+          {{#if camp.routed}}<span class="mc-flag mc-flag-bad" title="En déroute">🏳 Déroute</span>{{/if}}
+          {{#if camp.fortified}}<span class="mc-flag" title="Fortifié (+2 moral)">🏰</span>{{/if}}
+          {{#if camp.fearless}}<span class="mc-flag" title="Morts-vivants / sans peur (+2 moral)">💀</span>{{/if}}
+          {{#if camp.pinned}}<span class="mc-flag" title="Acculé (+2 moral)">🧱</span>{{/if}}
+          {{#if camp.modifiers.length}}<span class="mc-flag" title="Modificateurs permanents : {{camp.modifiersText}}">⚑ {{camp.modifiersTotalLabel}}</span>{{/if}}
+          {{#if camp.actionMods.length}}<span class="mc-flag mc-flag-round" title="En attente pour le prochain jet de Stratégie : {{camp.actionModsText}}">⏱ {{camp.actionModsTotalLabel}}</span>{{/if}}
+        </div>
+        {{/unless}}
+        {{#if camp.showCommandant}}
+        <div class="mc-chip-cmd" title="Commandant">
+          🎖 {{#if camp.commandantName}}{{camp.commandantName}}{{else}}<i>abstrait (d6)</i>{{/if}}
+          {{#if camp.commandantName}}
+          <select class="mc-strategie-skill mc-mini" data-camp="{{camp.id}}" title="Compétence utilisée pour le jet de Stratégie">
+            {{#each camp.strategieSkillChoices as |s|}}<option value="{{s}}" {{#if (eq s camp.strategieSkillSelected)}}selected{{/if}}>{{s}}</option>{{/each}}
+            <option value="__unskilled__" {{#if (eq camp.strategieSkillSelected "__unskilled__")}}selected{{/if}}>Unskilled (d4-2)</option>
+          </select>
+          {{/if}}
+        </div>
+        {{/if}}
+      </div>
+      {{/each}}
+    </div>
+  `;
+
   const PARTICIPANTS_BLOCK = `
-    <h3>Participants à l'Action de combat — ce round</h3>
-    <p class="mc-help">Chaque round, choisis quels Jokers (PJ ou PNJ, alliés ou adverses) participent, et dans quel camp. Le jet de Stratégie est verrouillé tant qu'il reste des participants ou des jets de Moral en attente.</p>
-    <div class="mc-add-participant">
-      <select class="mc-participant-actor">
-        <option value="">— choisir un Joker —</option>
+    <div class="mc-section-head">
+      <span>⚔ Actions de combat</span>
+      <span class="mc-count" title="Résolues / total">{{participantsDone}}/{{participantsTotal}}</span>
+      <span class="mc-info" title="Chaque round, ajoute les Jokers (PJ ou PNJ, alliés ou adverses) qui agissent, et dans quel camp. Le jet de Stratégie reste verrouillé tant qu'une action ou un Moral est en attente.">ⓘ</span>
+    </div>
+    {{#if isGM}}{{#if participantActorChoices.length}}
+    <div class="mc-row mc-add-participant">
+      <select class="mc-participant-actor mc-grow">
+        <option value="">— Joker —</option>
         {{#each participantActorChoices as |a|}}<option value="{{a.id}}">{{a.name}}</option>{{/each}}
       </select>
       <select class="mc-participant-camp">
-        {{#each state.camps as |camp|}}<option value="{{camp.id}}">{{camp.name}}</option>{{/each}}
+        {{#each state.camps as |camp|}}<option value="{{camp.id}}" {{#if (eq camp.id ../defaultParticipantCamp)}}selected{{/if}}>{{camp.name}}</option>{{/each}}
       </select>
-      <button data-action="addParticipant">+ Ajouter</button>
+      <button data-action="addParticipant" class="mc-icon-btn" title="Ajouter à l'Action de combat">＋</button>
     </div>
-    <ul class="mc-participant-list">
+    {{/if}}{{/if}}
+    {{#unless participants.length}}<p class="mc-empty">Aucun participant ce round.</p>{{/unless}}
+    <ul class="mc-plist">
       {{#each participants as |p|}}
-      <li class="mc-participant {{#if p.done}}mc-participant-done{{/if}}">
-        <div class="mc-participant-row">
-          <strong>{{p.actorName}}</strong> → {{p.campName}}
+      <li class="mc-p {{#if p.done}}mc-p-done{{/if}}" style="--camp: {{p.campColor}}">
+        <div class="mc-row">
+          <span class="mc-dot" title="{{p.campName}}"></span>
+          <span class="mc-p-name mc-grow" title="{{p.actorName}} → {{p.campName}}">{{p.actorName}}</span>
           {{#if p.done}}
-            <span class="mc-status-done">✅ {{p.summary}}</span>
+            <span class="mc-p-res" title="{{p.summary}}">✅ {{p.summary}}</span>
           {{else}}
-            <span class="mc-status-pending">⏳ en attente</span>
+            {{#unless p.pending}}<span class="mc-p-wait" title="{{#if p.waitingFor}}Jet attendu de {{p.waitingFor}}{{else}}En attente{{/if}}">⏳{{#if p.waitingFor}} {{p.waitingFor}}{{/if}}</span>{{/unless}}
           {{/if}}
-          <a data-action="removeParticipant" data-participant="{{p.id}}" title="Retirer">✕</a>
+          {{#if p.canRemove}}<a class="mc-x" data-action="removeParticipant" data-participant="{{p.id}}" title="Retirer">✕</a>{{/if}}
         </div>
         {{#if p.canControl}}
-          {{#unless p.done}}
-          <div class="mc-participant-controls">
-            <select class="mc-participant-skill" data-participant="{{p.id}}">
+          {{#unless p.done}}{{#unless p.pending}}
+          <div class="mc-row">
+            <select class="mc-participant-skill mc-grow" data-participant="{{p.id}}" title="Compétence">
               {{#each p.skillChoices as |s|}}<option value="{{s}}">{{s}}</option>{{/each}}
-              {{#unless p.hasNativeUnskilled}}<option value="__unskilled__">Unskilled attempt (d4-2)</option>{{/unless}}
-              <option value="__custom__">Autre (nom exact sur la fiche)</option>
+              {{#unless p.hasNativeUnskilled}}<option value="__unskilled__">Unskilled (d4-2)</option>{{/unless}}
+              <option value="__custom__">Autre…</option>
             </select>
-            <input type="text" class="mc-participant-custom" data-participant="{{p.id}}" placeholder="Compétence si 'Autre'">
-            <button data-action="rollParticipant" data-participant="{{p.id}}">🎲 Lancer l'action</button>
+            <input type="text" class="mc-participant-custom mc-hide" data-participant="{{p.id}}" placeholder="Nom exact">
+            <button data-action="rollParticipant" data-participant="{{p.id}}" class="mc-roll-btn" title="{{#if p.waitingFor}}Le jet s'ouvrira chez {{p.waitingFor}}{{else}}Lancer le jet{{/if}}">🎲</button>
           </div>
-          {{/unless}}
+          {{/unless}}{{/unless}}
           {{#if p.pending}}
-          <div class="mc-pending">
-            <strong>Confirme le résultat</strong> <span class="mc-manual-note">(corrige si relance)</span>
-            <div class="mc-pending-row">
-              <label>Total : <input type="number" class="mc-pending-action-total" data-participant="{{p.id}}" value="{{p.pending.total}}"></label>
-              {{#if p.pending.bennies}}
-              <button data-action="rerollParticipant" data-participant="{{p.id}}" class="mc-d6-btn" title="Dépense 1 Jeton et relance tout le jet">🔄 Relancer (Jeton — {{p.pending.bennies}} dispo.)</button>
-              {{/if}}
-              <button data-action="addD6Participant" data-participant="{{p.id}}" class="mc-d6-btn" title="Conviction activée après coup">🎲 +1d6</button>
-              <label><input type="checkbox" class="mc-pending-action-crit" data-participant="{{p.id}}"> Échec critique (1 naturel)</label>
-            </div>
-            <button data-action="confirmParticipant" data-participant="{{p.id}}" class="mc-big-btn">✅ Résoudre</button>
-            <button data-action="cancelParticipant" data-participant="{{p.id}}" class="mc-small">Annuler le jet</button>
+          <div class="mc-confirm">
+            <input type="number" class="mc-pending-action-total" data-participant="{{p.id}}" value="{{p.pending.total}}" title="Total (corrige si besoin)">
+            {{#if p.pending.bennies}}<button data-action="rerollParticipant" data-participant="{{p.id}}" class="mc-icon-btn" title="Relancer avec un Jeton ({{p.pending.bennies}} dispo.) — garde le meilleur">🔄<sup>{{p.pending.bennies}}</sup></button>{{/if}}
+            <button data-action="addD6Participant" data-participant="{{p.id}}" class="mc-icon-btn" title="Ajouter 1d6 explosif (Conviction après coup)">+d6</button>
+            <label class="mc-crit" title="Échec critique (1 naturel)"><input type="checkbox" class="mc-pending-action-crit" data-participant="{{p.id}}">☠</label>
+            <button data-action="confirmParticipant" data-participant="{{p.id}}" class="mc-ok-btn" title="Résoudre">✔</button>
+            <button data-action="cancelParticipant" data-participant="{{p.id}}" class="mc-icon-btn" title="Annuler le jet">✖</button>
           </div>
           {{/if}}
         {{/if}}
       </li>
       {{/each}}
     </ul>
-    {{#unless canRollStrategie}}
-    <p class="mc-warning">⚠️ Des participants et/ou des jets de Moral sont encore en attente — le jet de Stratégie est verrouillé.</p>
-    {{/unless}}
   `;
 
-  // Bloc réutilisé pour la config d'UN camp (Configuration + Round view lecture seule)
+  const LOG_BLOCK = `
+    <details class="mc-fold" data-section="log" {{#if open.log}}open{{/if}}>
+      <summary>📜 Journal <span class="mc-count">{{state.log.length}}</span></summary>
+      <div class="mc-log">
+        {{#each state.log as |entry|}}
+        <div class="mc-log-entry"><span class="mc-log-round">R{{entry.round}}</span> {{entry.text}}</div>
+        {{/each}}
+      </div>
+    </details>
+  `;
+
+  // Configuration d'UN camp
   const CAMP_SETUP_BLOCK = `
+    <div class="mc-setup-grid">
     {{#each setupCamps as |camp|}}
-    <div class="mc-camp" style="border-color: {{camp.color}}">
-      <h4 style="color: {{camp.color}}">{{camp.label}}</h4>
-      <input type="text" class="mc-setup-name" data-idx="{{camp.idx}}" value="{{camp.name}}" placeholder="Nom du camp">
-      <input type="number" class="mc-setup-markers" data-idx="{{camp.idx}}" value="{{camp.forceMarkers}}" placeholder="Marqueurs de forces">
-      <input type="color" class="mc-setup-color" data-idx="{{camp.idx}}" value="{{camp.color}}">
-
-      <div class="mc-flags">
-        <label><input type="checkbox" data-action="flag" data-camp="{{camp.id}}" data-flag="fortified" {{#if camp.fortified}}checked{{/if}}> Fortifié (+2 moral)</label>
-        <label><input type="checkbox" data-action="flag" data-camp="{{camp.id}}" data-flag="fearless" {{#if camp.fearless}}checked{{/if}}> Morts-vivants/Sans peur (+2 moral)</label>
-        <label><input type="checkbox" data-action="flag" data-camp="{{camp.id}}" data-flag="pinned" {{#if camp.pinned}}checked{{/if}}> Acculé (+2 moral)</label>
+    <div class="mc-card" style="--camp: {{camp.color}}">
+      <div class="mc-row">
+        <input type="color" class="mc-setup-color" data-idx="{{camp.idx}}" value="{{camp.color}}" title="Couleur">
+        <input type="text" class="mc-setup-name mc-grow" data-idx="{{camp.idx}}" value="{{camp.name}}" placeholder="Nom du camp">
+        <input type="number" class="mc-setup-markers mc-num" data-idx="{{camp.idx}}" value="{{camp.forceMarkers}}" title="Marqueurs de forces" min="0">
       </div>
-
-      <div class="mc-mods">
-        <strong>Modificateurs permanents :</strong>
-        <ul>
-          {{#each camp.modifiers as |mod|}}
-          <li>{{mod.label}} ({{mod.value}}) <a data-action="rmMod" data-camp="{{camp.id}}" data-mod="{{mod.id}}">✕</a></li>
-          {{/each}}
-        </ul>
-        <div class="mc-add-mod">
-          <input type="text" placeholder="Libellé (ex: Avantage tactique)" class="mc-mod-label" data-camp="{{camp.id}}">
-          <input type="number" placeholder="Valeur" class="mc-mod-value" data-camp="{{camp.id}}">
-          <button data-action="addMod" data-camp="{{camp.id}}">Ajouter</button>
-        </div>
+      <div class="mc-row mc-wrap">
+        <label class="mc-toggle" title="Fortifié (+2 moral)"><input type="checkbox" data-action="flag" data-camp="{{camp.id}}" data-flag="fortified" {{#if camp.fortified}}checked{{/if}}>🏰 Fortifié</label>
+        <label class="mc-toggle" title="Morts-vivants / sans peur (+2 moral)"><input type="checkbox" data-action="flag" data-camp="{{camp.id}}" data-flag="fearless" {{#if camp.fearless}}checked{{/if}}>💀 Sans peur</label>
+        <label class="mc-toggle" title="Acculé (+2 moral)"><input type="checkbox" data-action="flag" data-camp="{{camp.id}}" data-flag="pinned" {{#if camp.pinned}}checked{{/if}}>🧱 Acculé</label>
       </div>
-
-      <div class="mc-commandant">
-        <label>Commandant : <select class="mc-commandant-select" data-camp="{{camp.id}}">
-          <option value="">— manuel (d6) —</option>
+      <div class="mc-row">
+        <span class="mc-lbl">🎖</span>
+        <select class="mc-commandant-select mc-grow" data-camp="{{camp.id}}" title="Commandant (jet de Stratégie et de Moral)">
+          <option value="">— commandant abstrait (d6) —</option>
           {{#each camp.commandantChoices as |a|}}<option value="{{a.id}}" {{#if (eq a.id camp.commandantId)}}selected{{/if}}>{{a.name}}</option>{{/each}}
-        </select></label>
+        </select>
+      </div>
+      {{#if camp.modifiers.length}}
+      <div class="mc-row mc-wrap">
+        {{#each camp.modifiers as |mod|}}
+        <span class="mc-pill">{{mod.label}} {{mod.value}} <a data-action="rmMod" data-camp="{{camp.id}}" data-mod="{{mod.id}}" title="Supprimer">✕</a></span>
+        {{/each}}
+      </div>
+      {{/if}}
+      <div class="mc-row">
+        <input type="text" placeholder="Modificateur (ex : Avantage tactique)" class="mc-mod-label mc-grow" data-camp="{{camp.id}}">
+        <input type="number" placeholder="±" class="mc-mod-value mc-num" data-camp="{{camp.id}}">
+        <button data-action="addMod" data-camp="{{camp.id}}" class="mc-icon-btn" title="Ajouter le modificateur permanent">＋</button>
       </div>
     </div>
     {{/each}}
+    </div>
   `;
 
   const GM_TEMPLATE = `
   <div class="mc-app">
     {{#if state.initialized}}
-    <div class="mc-nav">
-      <button data-action="navRound" class="mc-nav-btn {{#if isRoundView}}mc-nav-active{{/if}}">▶ Round en cours</button>
-      <button data-action="navSetup" class="mc-nav-btn {{#if isSetupView}}mc-nav-active{{/if}}">⚙ Configuration</button>
-      {{#if hasMoraleQueue}}
-      <button data-action="navMorale" class="mc-nav-btn mc-nav-alert {{#if isMoraleView}}mc-nav-active{{/if}}">⚠ Moral ({{moraleQueueCount}})</button>
-      {{/if}}
-    </div>
+    <nav class="mc-tabs">
+      <a data-action="navRound" class="{{#if isRoundView}}active{{/if}}">▶ Round {{state.round}}</a>
+      <a data-action="navSetup" class="{{#if isSetupView}}active{{/if}}">⚙ Config</a>
+      {{#if hasMoraleQueue}}<a data-action="navMorale" class="mc-tab-alert {{#if isMoraleView}}active{{/if}}">⚠ Moral {{moraleQueueCount}}</a>{{/if}}
+    </nav>
     {{/if}}
 
     {{#if isSetupView}}
-    <div class="mc-setup-view">
-      <h3>{{#if isReconfigure}}Configuration des camps{{else}}Configuration initiale{{/if}}</h3>
-      {{#if isReconfigure}}
-      <p class="mc-help">Nom/couleur/marqueurs, drapeaux, modificateurs permanents et commandant — tout se règle ici. Rien de tout ça ne réinitialise le round en cours ni le journal. Pour repartir entièrement à zéro : "🏳 Terminer le combat" dans l'écran Round.</p>
-      {{/if}}
+      <div class="mc-section-head">
+        <span>{{#if isReconfigure}}Configuration des camps{{else}}Nouveau combat de masse{{/if}}</span>
+        <span class="mc-info" title="Nom, couleur, marqueurs, drapeaux, modificateurs permanents et commandant. Modifier en cours de combat ne réinitialise ni le round ni le journal.">ⓘ</span>
+      </div>
       ${CAMP_SETUP_BLOCK}
-      <button data-action="submitSetup" class="mc-big-btn">{{#if isReconfigure}}✅ Appliquer nom/couleur/marqueurs{{else}}▶ Démarrer le combat{{/if}}</button>
-      {{#if isReconfigure}}<button data-action="cancelSetup" class="mc-small">← Retour au round</button>{{/if}}
-    </div>
+      <button data-action="submitSetup" class="mc-main-btn">{{#if isReconfigure}}✔ Appliquer{{else}}▶ Démarrer le combat{{/if}}</button>
+      {{#if isReconfigure}}<button data-action="cancelSetup" class="mc-link">← Retour au round</button>{{/if}}
     {{/if}}
 
     {{#if isRoundView}}
-      <div class="mc-round">Round actuel : <strong>{{state.round}}</strong></div>
-      <div class="mc-camps">
-        {{#each enrichedCamps as |camp|}}
-        <div class="mc-camp mc-camp-compact" style="border-color: {{camp.color}}">
-          <h3 style="color: {{camp.color}}">{{camp.name}} {{#if camp.routed}}<span class="mc-routed">(EN DÉROUTE)</span>{{/if}}</h3>
-          <div>Marqueurs de forces : <strong>{{camp.forceMarkers}}</strong> / {{camp.startMarkers}}</div>
-          <div class="mc-camp-summary">
-            {{#if camp.fortified}}<span class="mc-tag">Fortifié</span>{{/if}}
-            {{#if camp.fearless}}<span class="mc-tag">Sans peur</span>{{/if}}
-            {{#if camp.pinned}}<span class="mc-tag">Acculé</span>{{/if}}
-            {{#if camp.commandantName}}<span class="mc-tag">Commandant : {{camp.commandantName}}</span>{{else}}<span class="mc-tag">Commandant : manuel (d6)</span>{{/if}}
-          </div>
-          {{#if camp.commandantName}}
-          <div class="mc-strategie-skill-row">
-            <label>Compétence de Stratégie : <select class="mc-strategie-skill" data-camp="{{camp.id}}">
-              {{#each camp.strategieSkillChoices as |s|}}<option value="{{s}}" {{#if (eq s camp.strategieSkillSelected)}}selected{{/if}}>{{s}}</option>{{/each}}
-              <option value="__unskilled__" {{#if (eq camp.strategieSkillSelected "__unskilled__")}}selected{{/if}}>Unskilled attempt (d4-2)</option>
-            </select></label>
-          </div>
-          {{/if}}
-          {{#if camp.modifiers.length}}
-          <div class="mc-mods-readonly"><em>Modificateurs permanents : {{camp.modifiersText}}</em></div>
-          {{/if}}
-          {{#if camp.actionMods.length}}
-          <div class="mc-mods mc-onetime-mods">
-            <strong>Bonus/malus en attente (prochain jet de Stratégie) :</strong>
-            <ul>{{#each camp.actionMods as |am|}}<li>{{am.label}} ({{am.value}})</li>{{/each}}</ul>
-          </div>
-          {{/if}}
-        </div>
-        {{/each}}
-      </div>
-      <button data-action="navSetup" class="mc-link-btn">⚙ Ajuster drapeaux / modificateurs / commandant</button>
+      ${SCOREBOARD_BLOCK}
+      {{#if hasMoraleQueue}}<button data-action="navMorale" class="mc-alert-btn">⚠ {{moraleQueueCount}} jet(s) de Moral à faire</button>{{/if}}
 
-      {{#if hasMoraleQueue}}
-      <button data-action="navMorale" class="mc-link-btn mc-link-alert">⚠ {{moraleQueueCount}} jet(s) de Moral en attente — y aller</button>
-      {{/if}}
-
-      <hr>
       ${PARTICIPANTS_BLOCK}
-      <div class="mc-round-tools">
-        <button data-action="clearParticipants" class="mc-small">🗑 Vider la liste des participants</button>
-        <select class="mc-force-morale-camp">
-          {{#each state.camps as |camp|}}<option value="{{camp.id}}">{{camp.name}}</option>{{/each}}
-        </select>
-        <button data-action="forceMorale" class="mc-small">➕ Forcer un jet de Moral</button>
-        <button data-action="rollEffets" class="mc-small">🎲 Table Effets des combats (2d6)</button>
-      </div>
-      <label class="mc-config-line"><input type="checkbox" data-action="toggleOnlyFatigue" {{#if state.config.onlyFatigueForJokers}}checked{{/if}}> Les Jokers ne subissent que de la Fatigue (jamais de Blessures) — variante, s'applique aux échecs simples et critiques</label>
 
-      <hr>
-      <button data-action="rollStrategie" class="mc-big-btn" {{#unless canRollStrategie}}disabled{{/unless}}>⚔️ Lancer le jet de Stratégie opposé</button>
-      {{#unless canRollStrategie}}
-      <p class="mc-warning">⚠️ Résous d'abord les Actions de combat et/ou jets de Moral en attente.</p>
-      {{/unless}}
       {{#if pendingStrategie}}
-      <div class="mc-pending">
-        <strong>Confirme les totaux</strong> <span class="mc-manual-note">(corrige si relance/Conviction après coup)</span>
-        <p class="mc-mods-hint">{{pendingStrategie.campALabel}} — modificateurs à appliquer : {{pendingStrategie.modsHintA}}<br>{{pendingStrategie.campBLabel}} — modificateurs à appliquer : {{pendingStrategie.modsHintB}}</p>
-        <div class="mc-pending-row">
-          <label>{{pendingStrategie.campALabel}} : <input type="number" class="mc-pending-a" value="{{pendingStrategie.totalA}}"></label>
-          {{#if pendingStrategie.benniesA}}<button data-action="rerollStrategieA" class="mc-d6-btn" title="Dépense 1 Jeton et relance tout le jet">🔄 Relancer (Jeton — {{pendingStrategie.benniesA}})</button>{{/if}}
-          <button data-action="addD6StrategieA" class="mc-d6-btn">🎲 +1d6</button>
+      <div class="mc-panel">
+        <div class="mc-section-head">
+          <span>Stratégie — confirmer</span>
+          <span class="mc-info" title="{{pendingStrategie.campALabel}} : {{pendingStrategie.modsHintA}} — {{pendingStrategie.campBLabel}} : {{pendingStrategie.modsHintB}}. Corrige un total si besoin (relance, Conviction…).">ⓘ</span>
         </div>
-        <div class="mc-pending-row">
-          <label>{{pendingStrategie.campBLabel}} : <input type="number" class="mc-pending-b" value="{{pendingStrategie.totalB}}"></label>
-          {{#if pendingStrategie.benniesB}}<button data-action="rerollStrategieB" class="mc-d6-btn" title="Dépense 1 Jeton et relance tout le jet">🔄 Relancer (Jeton — {{pendingStrategie.benniesB}})</button>{{/if}}
-          <button data-action="addD6StrategieB" class="mc-d6-btn">🎲 +1d6</button>
+        <div class="mc-confirm">
+          <span class="mc-grow mc-ell" title="{{pendingStrategie.campALabel}}">{{pendingStrategie.campALabel}}</span>
+          <input type="number" class="mc-pending-a" value="{{pendingStrategie.totalA}}">
+          {{#if pendingStrategie.benniesA}}<button data-action="rerollStrategieA" class="mc-icon-btn" title="Relancer avec un Jeton ({{pendingStrategie.benniesA}} dispo.)">🔄<sup>{{pendingStrategie.benniesA}}</sup></button>{{/if}}
+          <button data-action="addD6StrategieA" class="mc-icon-btn" title="+1d6 explosif">+d6</button>
         </div>
-        <button data-action="confirmStrategie" class="mc-big-btn">✅ Valider et appliquer le résultat</button>
-        <button data-action="cancelStrategie" class="mc-small">Annuler</button>
+        <div class="mc-confirm">
+          <span class="mc-grow mc-ell" title="{{pendingStrategie.campBLabel}}">{{pendingStrategie.campBLabel}}</span>
+          <input type="number" class="mc-pending-b" value="{{pendingStrategie.totalB}}">
+          {{#if pendingStrategie.benniesB}}<button data-action="rerollStrategieB" class="mc-icon-btn" title="Relancer avec un Jeton ({{pendingStrategie.benniesB}} dispo.)">🔄<sup>{{pendingStrategie.benniesB}}</sup></button>{{/if}}
+          <button data-action="addD6StrategieB" class="mc-icon-btn" title="+1d6 explosif">+d6</button>
+        </div>
+        <div class="mc-row">
+          <button data-action="confirmStrategie" class="mc-main-btn mc-grow">✔ Appliquer le résultat</button>
+          <button data-action="cancelStrategie" class="mc-icon-btn" title="Annuler">✖</button>
+        </div>
       </div>
+      {{else}}
+      <button data-action="rollStrategie" class="mc-main-btn" {{#unless canRollStrategie}}disabled title="{{strategieBlockReason}}"{{/unless}}>⚔ Jet de Stratégie</button>
+      {{#unless canRollStrategie}}<p class="mc-hint">{{strategieBlockReason}}</p>{{/unless}}
       {{/if}}
 
-      <hr>
-      <label><input type="checkbox" data-action="toggleReveal" {{#if state.revealEnemyToPlayers}}checked{{/if}}> Révéler les détails du camp adverse aux joueurs</label>
-      <div class="mc-footer-actions">
-        <button data-action="endCombat" class="mc-small mc-danger">🏳 Terminer le combat (réinitialiser)</button>
-      </div>
+      <details class="mc-fold" data-section="tools" {{#if open.tools}}open{{/if}}>
+        <summary>🧰 Outils</summary>
+        <div class="mc-row mc-wrap">
+          <button data-action="rollEffets" class="mc-sm-btn">🎲 Effets des combats</button>
+          <button data-action="clearParticipants" class="mc-sm-btn">🗑 Vider les actions</button>
+        </div>
+        <div class="mc-row">
+          <select class="mc-force-morale-camp mc-grow">
+            {{#each state.camps as |camp|}}<option value="{{camp.id}}">{{camp.name}}</option>{{/each}}
+          </select>
+          <button data-action="forceMorale" class="mc-sm-btn">➕ Forcer un Moral</button>
+        </div>
+        <label class="mc-check"><input type="checkbox" data-action="toggleOnlyFatigue" {{#if state.config.onlyFatigueForJokers}}checked{{/if}}> Jokers : Fatigue au lieu des Blessures (variante)</label>
+        <label class="mc-check"><input type="checkbox" data-action="toggleReveal" {{#if state.revealEnemyToPlayers}}checked{{/if}}> Révéler le camp adverse aux joueurs</label>
+        <div class="mc-row mc-wrap">
+          <button data-action="inviteSpectators" class="mc-sm-btn" title="Poste dans le chat un lien pour suivre le combat, et ouvre la fenêtre chez les joueurs qui ont déjà la macro">📣 Inviter les joueurs à suivre</button>
+          <button data-action="endCombat" class="mc-sm-btn mc-danger">🏳 Terminer le combat</button>
+        </div>
+      </details>
     {{/if}}
 
     {{#if isMoraleView}}
-      <h3>Jets de Moral requis</h3>
-      <p class="mc-help">Ces camps ont perdu des marqueurs de forces ce round et doivent faire un jet de Moral avant que le round suivant ne puisse commencer.</p>
+      <div class="mc-section-head">
+        <span>⚠ Jets de Moral</span>
+        <span class="mc-info" title="Ces camps ont perdu des marqueurs de forces ce round : jet d'Âme du commandant avant le round suivant.">ⓘ</span>
+      </div>
       {{#each moraleCamps as |camp|}}
-      <div class="mc-camp" style="border-color: {{camp.color}}">
-        <h3 style="color: {{camp.color}}">{{camp.name}} {{#if camp.routed}}<span class="mc-routed">(EN DÉROUTE)</span>{{/if}}</h3>
-        <div>Marqueurs de forces : <strong>{{camp.forceMarkers}}</strong> / {{camp.startMarkers}}</div>
-        <div>Commandant : {{#if camp.commandantName}}{{camp.commandantName}}{{else}}manuel (d6){{/if}}</div>
-        <button data-action="rollMorale" data-camp="{{camp.id}}" class="mc-big-btn">🎲 Lancer le jet de Moral</button>
-      </div>
-      {{/each}}
-
-      {{#each pendingMoraleList as |pm|}}
-      <div class="mc-pending">
-        <strong>Confirme le Moral — {{pm.campName}}</strong> <span class="mc-manual-note">(corrige si relance)</span>
-        <p class="mc-mods-hint">Modificateurs à appliquer : {{pm.modsHint}}</p>
-        <div class="mc-pending-row">
-          <label>Total : <input type="number" class="mc-pending-morale-total" data-camp="{{pm.campId}}" value="{{pm.total}}"></label>
-          {{#if pm.bennies}}<button data-action="rerollMorale" data-camp="{{pm.campId}}" class="mc-d6-btn" title="Dépense 1 Jeton et relance tout le jet">🔄 Relancer (Jeton — {{pm.bennies}})</button>{{/if}}
-          <button data-action="addD6Morale" data-camp="{{pm.campId}}" class="mc-d6-btn">🎲 +1d6</button>
-          <label><input type="checkbox" class="mc-pending-morale-crit" data-camp="{{pm.campId}}"> Échec critique (1 naturel)</label>
+      <div class="mc-card" style="--camp: {{camp.color}}">
+        <div class="mc-row">
+          <b class="mc-grow" style="color: var(--camp)">{{camp.name}}</b>
+          <span><b>{{camp.forceMarkers}}</b>/{{camp.startMarkers}}</span>
         </div>
-        <button data-action="confirmMorale" data-camp="{{pm.campId}}" class="mc-big-btn">✅ Valider</button>
-        <button data-action="cancelMorale" data-camp="{{pm.campId}}" class="mc-small">Annuler</button>
+        <div class="mc-row">
+          <span class="mc-grow mc-ell">🎖 {{#if camp.commandantName}}{{camp.commandantName}}{{else}}<i>abstrait (d6)</i>{{/if}}</span>
+          {{#unless camp.hasPendingMorale}}<button data-action="rollMorale" data-camp="{{camp.id}}" class="mc-roll-btn" title="Lancer le jet de Moral">🎲</button>{{/unless}}
+        </div>
       </div>
       {{/each}}
-
-      <button data-action="navRound" class="mc-small">← Retour au round</button>
+      {{#each pendingMoraleList as |pm|}}
+      <div class="mc-panel">
+        <div class="mc-section-head">
+          <span>Moral {{pm.campName}} — confirmer</span>
+          <span class="mc-info" title="Modificateurs : {{pm.modsHint}}">ⓘ</span>
+        </div>
+        <div class="mc-confirm">
+          <input type="number" class="mc-pending-morale-total" data-camp="{{pm.campId}}" value="{{pm.total}}">
+          {{#if pm.bennies}}<button data-action="rerollMorale" data-camp="{{pm.campId}}" class="mc-icon-btn" title="Relancer avec un Jeton ({{pm.bennies}} dispo.)">🔄<sup>{{pm.bennies}}</sup></button>{{/if}}
+          <button data-action="addD6Morale" data-camp="{{pm.campId}}" class="mc-icon-btn" title="+1d6 explosif">+d6</button>
+          <label class="mc-crit" title="Échec critique (1 naturel)"><input type="checkbox" class="mc-pending-morale-crit" data-camp="{{pm.campId}}">☠</label>
+          <button data-action="confirmMorale" data-camp="{{pm.campId}}" class="mc-ok-btn" title="Valider">✔</button>
+          <button data-action="cancelMorale" data-camp="{{pm.campId}}" class="mc-icon-btn" title="Annuler">✖</button>
+        </div>
+      </div>
+      {{/each}}
+      <button data-action="navRound" class="mc-link">← Retour au round</button>
     {{/if}}
 
-    <hr>
-    <h3>Journal de bataille</h3>
-    <div class="mc-log">
-      {{#each state.log as |entry|}}
-      <div class="mc-log-entry"><span class="mc-log-round">R{{entry.round}}</span> {{entry.text}}</div>
-      {{/each}}
-    </div>
+    ${LOG_BLOCK}
   </div>`;
 
   const PLAYER_TEMPLATE = `
   <div class="mc-app">
     {{#unless state.initialized}}
-      <p><em>Le Meneur n'a pas encore configuré le combat de masse.</em></p>
+      <p class="mc-empty">Le Meneur n'a pas encore lancé de combat de masse.</p>
     {{else}}
-      <div class="mc-round">Round actuel : <strong>{{state.round}}</strong></div>
-
-      <div class="mc-camp-select">
-        <label>Mon camp :
-          <select class="mc-my-camp">
-            {{#each state.camps as |camp|}}<option value="{{camp.id}}" {{#if (eq camp.id myCamp.id)}}selected{{/if}}>{{camp.name}}</option>{{/each}}
-          </select>
-        </label>
-      </div>
-
-      <div class="mc-camp mc-my-camp-box" style="border-color: {{myCamp.color}}">
-        <h3 style="color: {{myCamp.color}}">{{myCamp.name}} {{#if myCamp.routed}}<span class="mc-routed">(EN DÉROUTE)</span>{{/if}}</h3>
-        <div>Marqueurs de forces : <strong>{{myCamp.forceMarkers}}</strong> / {{myCamp.startMarkers}}</div>
-      </div>
-
-      {{#if state.revealEnemyToPlayers}}
-      <div class="mc-camp" style="border-color: {{enemyCamp.color}}">
-        <h3 style="color: {{enemyCamp.color}}">{{enemyCamp.name}} (adverse) {{#if enemyCamp.routed}}<span class="mc-routed">(EN DÉROUTE)</span>{{/if}}</h3>
-        <div>Marqueurs de forces : <strong>{{enemyCamp.forceMarkers}}</strong> / {{enemyCamp.startMarkers}}</div>
-      </div>
-      {{else}}
-      <p class="mc-hidden-note"><em>Les détails du camp adverse sont masqués par le Meneur.</em></p>
-      {{/if}}
-
-      <hr>
-      <h3>Mon personnage</h3>
-      <label>Acteur : <select class="mc-my-actor">
-        <option value="">— aucun —</option>
-        {{#each myActors as |a|}}<option value="{{a.id}}" {{#if (eq a.id selectedActorId)}}selected{{/if}}>{{a.name}}</option>{{/each}}
-      </select></label>
-
-      <div class="mc-resources">
-        <label>Munitions : <strong>{{myResources.ammo}}</strong>
-          <button data-action="res" data-key="ammo" data-delta="-1">-</button>
-          <button data-action="res" data-key="ammo" data-delta="1">+</button>
-        </label>
-        <label>Points de pouvoir : <strong>{{myResources.pp}}</strong>
-          <button data-action="res" data-key="pp" data-delta="-1">-</button>
-          <button data-action="res" data-key="pp" data-delta="1">+</button>
-        </label>
-      </div>
-
-      <hr>
+      <div class="mc-section-head"><span>▶ Round {{state.round}}</span><span class="mc-phase">{{phaseLabel}}</span></div>
+      ${SCOREBOARD_BLOCK}
       ${PARTICIPANTS_BLOCK}
 
+      <details class="mc-fold" data-section="perso" {{#if open.perso}}open{{/if}}>
+        <summary>🎒 Mon camp et mes ressources</summary>
+        <div class="mc-row">
+          <span class="mc-lbl">Camp</span>
+          <select class="mc-my-camp mc-grow">
+            {{#each state.camps as |camp|}}<option value="{{camp.id}}" {{#if (eq camp.id myCamp.id)}}selected{{/if}}>{{camp.name}}</option>{{/each}}
+          </select>
+        </div>
+        {{#if myActors.length}}
+        <div class="mc-row">
+          <span class="mc-lbl">Perso</span>
+          <select class="mc-my-actor mc-grow">
+            {{#each myActors as |a|}}<option value="{{a.id}}" {{#if (eq a.id ../selectedActorId)}}selected{{/if}}>{{a.name}}</option>{{/each}}
+          </select>
+        </div>
+        {{/if}}
+        <div class="mc-row">
+          <span class="mc-lbl mc-grow">Munitions <b>{{myResources.ammo}}</b></span>
+          <button data-action="res" data-key="ammo" data-delta="-1" class="mc-icon-btn">−</button>
+          <button data-action="res" data-key="ammo" data-delta="1" class="mc-icon-btn">＋</button>
+        </div>
+        <div class="mc-row">
+          <span class="mc-lbl mc-grow">Points de pouvoir <b>{{myResources.pp}}</b></span>
+          <button data-action="res" data-key="pp" data-delta="-1" class="mc-icon-btn">−</button>
+          <button data-action="res" data-key="pp" data-delta="1" class="mc-icon-btn">＋</button>
+        </div>
+      </details>
     {{/unless}}
-
-    <hr>
-    <h3>Journal de bataille</h3>
-    <div class="mc-log">
-      {{#each state.log as |entry|}}
-      <div class="mc-log-entry"><span class="mc-log-round">R{{entry.round}}</span> {{entry.text}}</div>
-      {{/each}}
-    </div>
+    ${LOG_BLOCK}
   </div>`;
 
   if (!Handlebars.helpers.eq) {
@@ -1064,7 +1342,7 @@
       return foundry.utils.mergeObject(super.defaultOptions, {
         id: "mass-combat-app",
         title: `Combats de masse (v${MC_CONFIG.VERSION})`,
-        width: 540,
+        width: 440,
         height: "auto",
         resizable: true,
       });
@@ -1084,16 +1362,60 @@
         // moment du jet), pour que le bouton de relance reflète l'état
         // réel de la fiche.
         const pending = rawPending ? { ...rawPending, bennies: actor?.system?.bennies?.value ?? 0 } : null;
+        // À qui le jet sera-t-il demandé ? (joueur connecté propriétaire,
+        // autre que soi) — affiché pour que le MJ sache que la fenêtre de
+        // jet s'ouvrira chez ce joueur.
+        const owner = findOwningUser(game.actors.get(p.actorId));
+        const waitingFor = owner && owner.id !== game.user.id ? owner.name : null;
         return {
           ...p,
           campName: camp?.name ?? "?",
+          campColor: camp?.color ?? "#666",
           done: p.status === "done",
           canControl,
+          canRemove: game.user.isGM,
+          waitingFor,
           skillChoices,
           hasNativeUnskilled,
           pending,
         };
       });
+    }
+
+    /** Données communes d'affichage d'un camp (barre, totaux de modifs). */
+    _decorateCamp(camp, extra = {}) {
+      const sum = arr => (arr || []).reduce((a, m) => a + Number(m.value || 0), 0);
+      const sign = n => (n >= 0 ? `+${n}` : `${n}`);
+      const pct = camp.startMarkers > 0 ? Math.max(0, Math.min(100, Math.round(100 * camp.forceMarkers / camp.startMarkers))) : 0;
+      return {
+        ...camp,
+        pct,
+        modifiersText: describeMods(camp.modifiers || []),
+        modifiersTotalLabel: sign(sum(camp.modifiers)),
+        actionModsText: describeMods(camp.actionMods || []),
+        actionModsTotalLabel: sign(sum(camp.actionMods)),
+        ...extra,
+      };
+    }
+
+    _commonViewData(state, participants) {
+      const moraleQueue = state.moraleQueue || [];
+      const pendingCount = participants.filter(p => !p.done).length;
+      let strategieBlockReason = "";
+      if (pendingCount) strategieBlockReason = `⏳ ${pendingCount} action(s) de combat à résoudre`;
+      else if (moraleQueue.length) strategieBlockReason = "⚠ Jet(s) de Moral à faire d'abord";
+      return {
+        participants,
+        participantsDone: participants.filter(p => p.done).length,
+        participantsTotal: participants.length,
+        strategieBlockReason,
+        open: this._open ?? {},
+        isGM: game.user.isGM,
+        phaseLabel: !state.initialized ? ""
+          : moraleQueue.length ? "⚠ Jets de Moral en cours"
+          : pendingCount ? `⏳ Actions de combat : ${participants.length - pendingCount}/${participants.length} résolues`
+          : "⚔ En attente du jet de Stratégie",
+      };
     }
 
     async getData() {
@@ -1130,17 +1452,17 @@
             }
             strategieSkillSelected = this._strategieSkill[camp.id];
           }
-          return {
-            ...camp,
+          return this._decorateCamp(camp, {
             commandantName: commandant?.name,
-            modifiersText: describeMods(camp.modifiers),
+            showCommandant: true,
+            hasPendingMorale: !!this._pendingMorale?.[camp.id],
             // Un acteur déjà commandant de l'AUTRE camp ne peut pas être
             // choisi ici (mais reste proposé s'il est déjà LE commandant
             // de CE camp, pour rester sélectionné dans la liste).
             commandantChoices: commandantActors.filter(a => a.id !== otherCamp.commandantId).map(a => ({ id: a.id, name: a.name })),
             strategieSkillChoices,
             strategieSkillSelected,
-          };
+          });
         });
 
         let view = !state.initialized ? "setup" : (this._view || "round");
@@ -1149,7 +1471,10 @@
 
         const moraleCamps = enrichedCamps.filter(c => moraleQueue.includes(c.id));
         const setupCamps = enrichedCamps.map((c, idx) => ({ ...c, idx, label: idx === 0 ? "Camp A" : "Camp B" }));
-        const participantActorChoices = wildcardActors.filter(a => !commandantIds.has(a.id)).map(a => ({ id: a.id, name: a.name }));
+        const engagedIds = new Set((state.roundActions || []).map(p => p.actorId));
+        const participantActorChoices = wildcardActors
+          .filter(a => !commandantIds.has(a.id) && !engagedIds.has(a.id))
+          .map(a => ({ id: a.id, name: a.name }));
 
         let pendingStrategie = this._pendingStrategie ?? null;
         if (pendingStrategie) {
@@ -1166,8 +1491,10 @@
           return { campId, ...pm, bennies: actor?.system?.bennies?.value ?? 0 };
         });
 
+        const participants = this._buildParticipantsViewModel(state, () => true);
         return {
           state, enrichedCamps, moraleCamps, setupCamps,
+          scoreCamps: enrichedCamps,
           isSetupView: view === "setup",
           isRoundView: view === "round",
           isMoraleView: view === "morale",
@@ -1175,26 +1502,36 @@
           hasMoraleQueue: moraleQueue.length > 0,
           moraleQueueCount: moraleQueue.length,
           participantActorChoices,
-          participants: this._buildParticipantsViewModel(state, () => true),
+          defaultParticipantCamp: state.camps[0]?.id,
           canRollStrategie,
           pendingStrategie,
           pendingMoraleList,
+          ...this._commonViewData(state, participants),
         };
       } else {
         const myRes = state.playerResources[game.user.id] ?? { ammo: 0, pp: 0, campId: state.camps[0]?.id };
         const myCamp = state.camps.find(c => c.id === myRes.campId) ?? state.camps[0];
         const enemyCamp = state.camps.find(c => c.id !== myCamp?.id);
-        const myActors = game.actors.filter(a => a.isOwner && isWildcardActor(a) && !commandantIds.has(a.id));
+        const myActorDocs = game.actors.filter(a => a.isOwner && isWildcardActor(a) && !commandantIds.has(a.id));
+        const myActors = myActorDocs.map(a => ({ id: a.id, name: a.name }));
         const myActorIds = new Set(myActors.map(a => a.id));
         const selectedActorId = this._selectedActorId ?? myActors[0]?.id ?? "";
+        // Mon camp toujours visible ; le camp adverse seulement si le MJ le
+        // révèle (sinon pastille masquée "?").
+        const scoreCamps = [myCamp, enemyCamp].filter(Boolean).map(c =>
+          this._decorateCamp(c, { hidden: c.id !== myCamp.id && !state.revealEnemyToPlayers }));
+        // On ne propose que ses persos pas encore engagés ce round.
+        const engaged = new Set((state.roundActions || []).map(p => p.actorId));
+        const participants = this._buildParticipantsViewModel(state, (p) => myActorIds.has(p.actorId));
         return {
-          state, myCamp, enemyCamp,
+          state, myCamp, enemyCamp, scoreCamps,
           myResources: myRes,
           myActors,
           selectedActorId,
-          participantActorChoices: myActors.map(a => ({ id: a.id, name: a.name })),
-          participants: this._buildParticipantsViewModel(state, (p) => myActorIds.has(p.actorId)),
+          participantActorChoices: myActors.filter(a => !engaged.has(a.id)),
+          defaultParticipantCamp: myCamp?.id,
           canRollStrategie,
+          ...this._commonViewData(state, participants),
         };
       }
     }
@@ -1207,6 +1544,19 @@
 
     activateListeners(html) {
       super.activateListeners(html);
+
+      // Sections repliables : on mémorise l'état ouvert/fermé entre deux
+      // rendus (l'évènement "toggle" ne remonte pas, d'où la liaison directe).
+      html.find("details[data-section]").on("toggle", (ev) => {
+        this._open ??= {};
+        this._open[ev.currentTarget.dataset.section] = ev.currentTarget.open;
+      });
+
+      // Champ "nom exact" affiché seulement si "Autre…" est choisi.
+      html.on("change", ".mc-participant-skill", (ev) => {
+        const id = ev.currentTarget.dataset.participant;
+        html.find(`.mc-participant-custom[data-participant='${id}']`).toggleClass("mc-hide", ev.currentTarget.value !== "__custom__");
+      });
 
       // ---- Actions communes (MJ + joueurs) ----
       html.on("click", "[data-action='res']", async (ev) => {
@@ -1251,8 +1601,18 @@
         const p = (state.roundActions || []).find(x => x.id === participantId);
         if (!p) return;
         const actor = game.actors.get(p.actorId);
-        const total = await rollForActor(actor, skillName, [], `Action de combat — ${p.actorName}`);
-        if (total === null) { ui.notifications.warn("Jet annulé."); return; }
+        // Anti double-clic pendant qu'un jet (éventuellement délégué) est en cours.
+        this._rolling ??= new Set();
+        if (this._rolling.has(participantId)) return;
+        this._rolling.add(participantId);
+        ev.currentTarget.disabled = true;
+        let total;
+        try {
+          total = await rollForActor(actor, skillName, [], `Action de combat — ${p.actorName}`);
+        } finally {
+          this._rolling.delete(participantId);
+        }
+        if (total === null || total === undefined) { ui.notifications.warn("Jet annulé ou sans réponse."); this.render(); return; }
         this._pendingActions ??= {};
         this._pendingActions[participantId] = { total, skillName, actorId: p.actorId, actorName: p.actorName, campId: p.campId };
         this.render();
@@ -1316,11 +1676,17 @@
         };
         if (!state.initialized) {
           await applyPatch("setupCamps", campA, campB);
+          await inviteSpectators(getState());
         } else {
           await applyPatch("reconfigureCamps", campA, campB);
         }
         this._view = "round";
         this.render();
+      });
+
+      html.on("click", "[data-action='inviteSpectators']", async () => {
+        await inviteSpectators(getState());
+        ui.notifications.info("Invitation postée dans le chat.");
       });
 
       html.on("click", "[data-action='cancelSetup']", () => {
@@ -1388,12 +1754,17 @@
       });
 
       html.on("click", "[data-action='endCombat']", async () => {
-        const confirmed = await Dialog.confirm({
+        const choice = await mcChoose({
           title: "Terminer le combat de masse ?",
-          content: "<p>Ceci réinitialise <strong>tout</strong> (camps, marqueurs, journal, participants, ressources) à zéro. Cette action est irréversible. Continuer ?</p>",
-          defaultYes: false,
+          content: `<div class="mc-dialog-body">
+            <p class="mc-dialog-lead">🏳 Tout réinitialiser ?</p>
+            <p>Camps, marqueurs, journal, participants et ressources repartent à zéro. Un bilan final est posté dans le chat.</p>
+            <p class="mc-dialog-warn">Action irréversible.</p>
+          </div>`,
+          buttons: [{ action: "end", label: "🏳 Terminer" }, { action: "cancel", label: "Annuler" }],
+          defaultAction: "cancel",
         });
-        if (!confirmed) return;
+        if (choice !== "end") return;
         const state = getState();
         await this._postRoundRecap(state, { final: true });
         await applyPatch("resetAll");
@@ -1590,18 +1961,18 @@
         await this._applyInjury(actorId, actorName, kind, 1, "échec en Action de combat");
         summary = `Échec — 1 ${kindLabel}`;
       } else if (total >= MC_CONFIG.TARGET_NUMBER + 4) {
-        const choice = await new Promise((resolve) => {
-          new Dialog({
-            title: "Prouesse en Action de combat !",
-            content: `<p>${actorName} obtient une Prouesse (${total}). Choisis l'effet (règle p. 96) :</p>`,
-            buttons: {
-              table: { label: "🎲 Table Effets des combats", callback: () => resolve("table") },
-              bonus: { label: "+2 Soutien", callback: () => resolve("bonus") },
-            },
-            default: "bonus",
-            close: () => resolve("bonus"),
-          }).render(true);
-        });
+        const choice = (await mcChoose({
+          title: "Prouesse en Action de combat !",
+          content: `<div class="mc-dialog-body">
+            <p class="mc-dialog-lead">🌟 ${actorName} — Prouesse (${total})</p>
+            <p>Choisis l'effet :</p>
+          </div>`,
+          buttons: [
+            { action: "table", label: "🎲 Effets des combats" },
+            { action: "bonus", label: "＋2 au jet de Stratégie" },
+          ],
+          defaultAction: "bonus",
+        })) ?? "bonus";
         if (choice === "table") {
           const effet = rollEffetsTable();
           await ChatMessage.create({ content: `<h3>Effets des combats (${effet.total}) — ${actorName}</h3><p><strong>${effet.name}</strong> — ${effet.text}</p>` });
@@ -1647,33 +2018,36 @@
 
     /** Poste dans le chat un récapitulatif lisible du round (ou du combat
      *  s'il se termine) : marqueurs perdus/restants par camp. */
+    /** Poste dans le chat un récapitulatif lisible du round (ou du combat
+     *  s'il se termine) : marqueurs perdus/restants par camp, en blocs
+     *  empilés plutôt qu'un tableau large — bien plus lisible dans la
+     *  colonne de chat, souvent étroite. */
     async _postRoundRecap(state, { final = false } = {}) {
       const start = state.roundStartMarkers || {};
-      const rows = state.camps.map(camp => {
+      const blocks = state.camps.map(camp => {
         const before = start[camp.id] ?? camp.forceMarkers;
         const lost = Math.max(0, before - camp.forceMarkers);
-        return `<tr>
-          <td style="padding:3px 10px; border-bottom:1px solid #ccc;"><strong style="color:${camp.color}">${camp.name}</strong></td>
-          <td style="padding:3px 10px; text-align:center; border-bottom:1px solid #ccc;">${lost}</td>
-          <td style="padding:3px 10px; text-align:center; border-bottom:1px solid #ccc;"><strong>${camp.forceMarkers}</strong> / ${camp.startMarkers}</td>
-          <td style="padding:3px 10px; text-align:center; border-bottom:1px solid #ccc;">${camp.routed ? "🏳 En déroute" : "—"}</td>
-        </tr>`;
+        const statusParts = [];
+        if (camp.fortified) statusParts.push("Fortifié");
+        if (camp.fearless) statusParts.push("Sans peur");
+        if (camp.pinned) statusParts.push("Acculé");
+        if (camp.routed) statusParts.push("🏳 En déroute");
+        const statusText = statusParts.length ? statusParts.join(" · ") : "En ordre de bataille";
+        return `
+        <div style="border-left:5px solid ${camp.color}; padding:4px 10px; margin-bottom:8px; background:rgba(0,0,0,0.03); border-radius:0 4px 4px 0;">
+          <div style="font-weight:bold; font-size:14px; color:${camp.color};">${camp.name}</div>
+          <div style="font-size:13px; margin:2px 0;">
+            <strong style="font-size:16px;">${camp.forceMarkers}</strong><span style="opacity:0.7;"> / ${camp.startMarkers} marqueurs</span>
+            ${lost > 0 ? `<span style="opacity:0.75;"> — perdu ${lost} ce round</span>` : ""}
+          </div>
+          <div style="font-size:12px; opacity:0.85;">${statusText}</div>
+        </div>`;
       }).join("");
       const title = final ? "Combat de masse terminé" : `Bilan du round ${state.round}`;
       const content = `
         <div style="border:2px solid #7a1f1f; border-radius:8px; padding:10px; background:rgba(122,31,31,0.05);">
-          <h2 style="margin:0 0 8px 0; text-align:center;">⚔️ ${title}</h2>
-          <table style="width:100%; border-collapse:collapse;">
-            <thead>
-              <tr style="border-bottom:2px solid #7a1f1f;">
-                <th style="text-align:left; padding:3px 10px;">Camp</th>
-                <th style="padding:3px 10px;">Marqueurs perdus</th>
-                <th style="padding:3px 10px;">Marqueurs restants</th>
-                <th style="padding:3px 10px;">Statut</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
+          <div style="text-align:center; font-weight:bold; font-size:16px; margin-bottom:8px;">⚔️ ${title}</div>
+          ${blocks}
         </div>`;
       await ChatMessage.create({ content });
     }
@@ -1687,58 +2061,119 @@
   const style = document.createElement("style");
   style.id = "mc-style";
   style.textContent = `
-    .mc-app { font-size: 13px; }
-    .mc-camps { display: flex; gap: 8px; flex-wrap: wrap; }
-    .mc-camp { border: 2px solid #666; border-radius: 6px; padding: 6px 10px; flex: 1; min-width: 180px; margin-bottom: 6px; }
-    .mc-camp h3, .mc-camp h4 { margin: 0 0 4px 0; }
-    .mc-camp-compact .mc-camp-summary { display: flex; gap: 4px; flex-wrap: wrap; margin: 4px 0; }
-    .mc-strategie-skill-row { font-size: 11px; margin: 4px 0; }
-    .mc-tag { font-size: 10px; background: rgba(0,0,0,0.08); border-radius: 10px; padding: 1px 8px; }
-    .mc-mods-readonly { font-size: 11px; opacity: 0.8; }
-    .mc-routed { color: #b30000; font-weight: bold; }
-    .mc-flags label { display: block; font-size: 11px; }
-    .mc-mods ul { margin: 2px 0; padding-left: 16px; }
-    .mc-add-mod input { margin-right: 4px; width: auto; }
-    .mc-big-btn { display: block; width: 100%; margin: 6px 0; font-weight: bold; }
-    .mc-small { font-size: 11px; margin-top: 6px; }
-    .mc-footer-actions { display: flex; gap: 8px; align-items: center; }
-    .mc-danger { color: #b30000; border-color: #b30000; }
-    .mc-log { max-height: 180px; overflow-y: auto; border: 1px solid #999; padding: 4px; background: rgba(0,0,0,0.03); }
-    .mc-log-entry { font-size: 11px; margin-bottom: 2px; }
-    .mc-log-round { font-weight: bold; margin-right: 4px; }
-    .mc-hidden-note { opacity: 0.7; }
-    .mc-resources label { display: block; margin: 4px 0; }
-    .mc-help { font-size: 11px; opacity: 0.8; }
-    .mc-manual-note { font-size: 10px; opacity: 0.7; margin: 0 4px; }
-    .mc-mods-hint { font-size: 11px; opacity: 0.85; font-style: italic; }
-    .mc-pending { margin: 8px 0; padding: 8px; border: 2px solid #b8860b; border-radius: 6px; background: rgba(184,134,11,0.08); }
-    .mc-pending-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 4px 0; }
-    .mc-pending input[type=number] { width: 60px; }
-    .mc-d6-btn { font-size: 11px; }
-    .mc-onetime-mods { border-color: #4a7a4a; }
-    .mc-config-line { display: block; font-size: 11px; margin: 4px 0; }
-    .mc-add-participant { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
-    .mc-participant-list { list-style: none; margin: 0; padding: 0; }
-    .mc-participant { border: 1px solid #888; border-radius: 4px; padding: 4px 6px; margin-bottom: 4px; }
-    .mc-participant-done { opacity: 0.75; border-color: #4a7a4a; }
-    .mc-participant-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-    .mc-participant-row a { margin-left: auto; cursor: pointer; opacity: 0.6; }
-    .mc-status-pending { color: #b8860b; font-size: 11px; }
-    .mc-status-done { color: #2e7d32; font-size: 11px; }
-    .mc-participant-controls { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
-    .mc-warning { color: #b8860b; font-weight: bold; font-size: 12px; }
-    .mc-nav { display: flex; gap: 4px; margin-bottom: 10px; border-bottom: 1px solid #999; padding-bottom: 8px; }
-    .mc-nav-btn { flex: 1; padding: 6px 4px; font-size: 12px; }
-    .mc-nav-active { font-weight: bold; border-bottom: 3px solid currentColor; }
-    .mc-nav-alert { color: #b8860b; border-color: #b8860b; }
-    .mc-setup-view h4 { margin: 8px 0 2px 0; }
-    .mc-setup-view .mc-camp { margin-bottom: 10px; }
-    .mc-setup-name, .mc-setup-markers { display: block; margin: 2px 0; width: 100%; box-sizing: border-box; }
-    .mc-setup-color { width: 60px; }
-    .mc-link-btn { display: block; width: 100%; margin: 6px 0; background: none; border: 1px dashed #666; font-size: 12px; padding: 4px; }
-    .mc-link-alert { border-color: #b8860b; color: #b8860b; }
-    .mc-round-tools { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
-    .mc-round-tools select { font-size: 11px; }
+    #mass-combat-app .window-content { padding: 8px 10px; }
+    .mc-app { --mc-red: #7a1f1f; --mc-gold: #b8860b; --mc-ok: #2e7d32; --mc-line: rgba(0,0,0,0.15);
+      font-size: 14px; line-height: 1.35; container-type: inline-size; }
+    .mc-app * { box-sizing: border-box; }
+    /* Boutons / champs : on neutralise les hauteurs imposées par Foundry */
+    .mc-app button, .mc-app select, .mc-app input[type=text], .mc-app input[type=number] {
+      font-size: 13px !important; height: auto !important; min-height: 28px; line-height: 1.2 !important;
+      padding: 3px 6px !important; margin: 0 !important; border-radius: 5px; }
+    .mc-app button { cursor: pointer; width: auto; flex: 0 0 auto; }
+    .mc-app input[type=color] { width: 30px; height: 28px; padding: 0; border: none; flex: 0 0 auto; }
+    .mc-row { display: flex; align-items: center; gap: 5px; margin: 4px 0; min-width: 0; }
+    .mc-wrap { flex-wrap: wrap; }
+    .mc-grow { flex: 1 1 auto; min-width: 0; }
+    .mc-ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mc-num { width: 56px !important; flex: 0 0 56px; text-align: center; }
+    .mc-hide { display: none !important; }
+    .mc-lbl { font-size: 13px; opacity: 0.85; white-space: nowrap; }
+    .mc-empty, .mc-hint { font-size: 12px; opacity: 0.7; margin: 4px 0; text-align: center; }
+    .mc-info { cursor: help; opacity: 0.55; font-size: 13px; }
+    .mc-phase { font-size: 12px; font-weight: normal; color: #6b4e00; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mc-count { font-size: 12px; background: rgba(0,0,0,0.08); border-radius: 9px; padding: 0 7px; }
+
+    /* Onglets */
+    .mc-tabs { display: flex; gap: 2px; margin: -2px 0 8px; border-bottom: 2px solid var(--mc-line); }
+    .mc-tabs a { flex: 1; text-align: center; padding: 5px 2px; font-size: 13px; font-weight: bold; cursor: pointer;
+      border-bottom: 3px solid transparent; margin-bottom: -2px; opacity: 0.7; white-space: nowrap; }
+    .mc-tabs a.active { opacity: 1; color: var(--mc-red); border-bottom-color: var(--mc-red); }
+    .mc-tabs a.mc-tab-alert { color: var(--mc-gold); opacity: 1; }
+
+    .mc-section-head { display: flex; align-items: center; gap: 6px; margin: 10px 0 4px;
+      font-weight: bold; font-size: 14px; color: var(--mc-red); }
+    .mc-section-head > span:first-child { flex: 1 1 auto; }
+
+    /* Tableau de bord des camps */
+    .mc-score { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .mc-chip { border: 1px solid var(--mc-line); border-left: 5px solid var(--camp); border-radius: 6px;
+      padding: 5px 7px; background: rgba(255,255,255,0.45); min-width: 0; }
+    .mc-chip-routed { opacity: 0.7; }
+    .mc-chip-head { display: flex; align-items: baseline; gap: 4px; }
+    .mc-chip-name { flex: 1; font-weight: bold; color: var(--camp); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mc-chip-count { font-size: 13px; white-space: nowrap; }
+    .mc-chip-count b { font-size: 17px; }
+    .mc-bar { height: 5px; background: rgba(0,0,0,0.1); border-radius: 3px; overflow: hidden; margin: 3px 0; }
+    .mc-bar span { display: block; height: 100%; background: var(--camp); }
+    .mc-chip-tags { display: flex; flex-wrap: wrap; gap: 3px; min-height: 0; }
+    .mc-flag { font-size: 11px; background: rgba(0,0,0,0.07); border-radius: 8px; padding: 0 5px; cursor: help; }
+    .mc-flag-bad { background: #b30000; color: #fff; }
+    .mc-flag-round { background: rgba(184,134,11,0.25); }
+    .mc-chip-cmd { font-size: 12px; margin-top: 3px; display: flex; flex-wrap: wrap; gap: 3px; align-items: center; overflow: hidden; }
+    .mc-app select.mc-mini { font-size: 11px !important; min-height: 22px; padding: 1px 3px !important; max-width: 100%; }
+
+    /* Participants */
+    .mc-plist { list-style: none; margin: 0; padding: 0; }
+    .mc-p { border: 1px solid var(--mc-line); border-left: 4px solid var(--camp); border-radius: 5px; padding: 3px 6px; margin-bottom: 4px; }
+    .mc-p .mc-row { margin: 2px 0; }
+    .mc-p-done { opacity: 0.8; background: rgba(46,125,50,0.06); }
+    .mc-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--camp); flex: 0 0 9px; }
+    .mc-p-name { font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mc-p-res { font-size: 12px; color: var(--mc-ok); max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mc-p-wait { font-size: 12px; color: var(--mc-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+    .mc-x { cursor: pointer; opacity: 0.5; padding: 0 2px; }
+    .mc-x:hover { opacity: 1; color: #b30000; }
+
+    /* Boutons */
+    .mc-app .mc-main-btn { display: block; width: 100%; margin: 8px 0 4px !important; min-height: 34px;
+      font-size: 14px !important; font-weight: bold; background: var(--mc-red) !important; color: #fff !important; border: none !important; }
+    .mc-app .mc-main-btn:disabled { background: #9a9a9a !important; cursor: not-allowed; }
+    .mc-app .mc-roll-btn { background: var(--mc-red) !important; color: #fff !important; border: none !important; min-width: 34px; font-size: 15px !important; }
+    .mc-app .mc-ok-btn { background: var(--mc-ok) !important; color: #fff !important; border: none !important; min-width: 32px; }
+    .mc-app .mc-icon-btn { min-width: 30px; padding: 3px 5px !important; }
+    .mc-app .mc-icon-btn sup { font-size: 9px; }
+    .mc-app .mc-sm-btn { font-size: 12px !important; }
+    .mc-app .mc-danger { color: #b30000 !important; border-color: #b30000 !important; }
+    .mc-app .mc-alert-btn { display: block; width: 100%; margin: 6px 0 !important; background: rgba(184,134,11,0.15) !important;
+      border: 1px solid var(--mc-gold) !important; color: #6b4e00 !important; font-weight: bold; }
+    .mc-app .mc-link { background: none !important; border: none !important; text-decoration: underline; font-size: 12px !important; opacity: 0.8; }
+
+    /* Confirmation d'un jet */
+    .mc-confirm { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 4px 0; }
+    .mc-confirm input[type=number] { width: 54px !important; text-align: center; font-weight: bold; font-size: 15px !important; }
+    .mc-crit { display: inline-flex; align-items: center; gap: 2px; font-size: 14px; cursor: pointer; padding: 0 3px; }
+    .mc-crit input { margin: 0 !important; }
+    .mc-panel { border: 2px solid var(--mc-gold); border-radius: 7px; padding: 4px 8px 6px; margin: 8px 0; background: rgba(184,134,11,0.07); }
+    .mc-panel .mc-section-head { margin-top: 2px; }
+
+    /* Cartes (config, moral) */
+    .mc-setup-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    .mc-card { border: 1px solid var(--mc-line); border-left: 5px solid var(--camp); border-radius: 6px; padding: 5px 8px; margin-bottom: 6px; background: rgba(255,255,255,0.45); }
+    .mc-toggle { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; padding: 1px 7px 1px 3px;
+      border: 1px solid var(--mc-line); border-radius: 12px; cursor: pointer; white-space: nowrap; }
+    .mc-toggle input { margin: 0 !important; }
+    .mc-pill { font-size: 12px; background: rgba(0,0,0,0.07); border-radius: 10px; padding: 1px 7px; }
+    .mc-pill a { cursor: pointer; opacity: 0.6; margin-left: 2px; }
+    .mc-check { display: flex; align-items: center; gap: 5px; font-size: 12px; margin: 5px 0; }
+    .mc-check input { margin: 0 !important; }
+
+    /* Sections repliables */
+    .mc-fold { margin-top: 8px; border-top: 1px solid var(--mc-line); padding-top: 4px; }
+    .mc-fold > summary { cursor: pointer; font-weight: bold; font-size: 13px; padding: 3px 0; list-style-position: inside; }
+    .mc-log { max-height: 160px; overflow-y: auto; font-size: 12px; padding: 2px 0; }
+    .mc-log-entry { margin-bottom: 3px; }
+    .mc-log-round { font-weight: bold; color: var(--mc-red); margin-right: 3px; }
+
+    /* Fenêtre plus large : deux colonnes pour la configuration */
+    @container (min-width: 520px) { .mc-setup-grid { grid-template-columns: 1fr 1fr; } }
+    /* Très étroit : camps l'un sous l'autre */
+    @container (max-width: 330px) { .mc-score { grid-template-columns: 1fr; } }
+
+    /* Petites boîtes de dialogue de la macro */
+    .mc-dialog .mc-dialog-body { font-size: 14px; line-height: 1.45; padding: 4px 2px; }
+    .mc-dialog .mc-dialog-lead { font-size: 16px; font-weight: bold; margin: 0 0 6px; }
+    .mc-dialog .mc-dialog-sub { font-size: 12px; opacity: 0.75; }
+    .mc-dialog .mc-dialog-warn { color: #b30000; font-weight: bold; }
   `;
   document.head.appendChild(style);
 
@@ -1751,8 +2186,12 @@
   }
   window.__mcApp = new MassCombatApp();
 
+  // Rafraîchissement en direct chez tout le monde (MJ et spectateurs).
+  // La toute première écriture d'un réglage "world" CRÉE le document Setting
+  // (hook createSetting, pas updateSetting) : on écoute donc les deux.
   if (window.__mcUpdateHook) {
     Hooks.off("updateSetting", window.__mcUpdateHook);
+    Hooks.off("createSetting", window.__mcUpdateHook);
   }
   window.__mcUpdateHook = (setting) => {
     if (setting.key === `${MC_CONFIG.NAMESPACE}.${SETTING_KEY}` && window.__mcApp?.rendered) {
@@ -1760,6 +2199,7 @@
     }
   };
   Hooks.on("updateSetting", window.__mcUpdateHook);
+  Hooks.on("createSetting", window.__mcUpdateHook);
 
   window.__mcApp.render(true, { focus: true });
 
