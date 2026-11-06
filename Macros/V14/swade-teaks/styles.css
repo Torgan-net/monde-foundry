@@ -1,0 +1,31 @@
+/* ===== Icône des groupes dans le Combat Tracker ===== */
+.group-header {
+  --ferremont-group-color: #b08d57;   /* laiton patiné, à ajuster */
+  position: relative;
+}
+
+/* 1. Icône ronde + bordure + halo */
+.group-header > img.token-image[data-group-id] {
+  border: 2px solid var(--ferremont-group-color);
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 6px 1px var(--ferremont-group-color);
+}
+
+/* 2. Badge "groupe" en bas à droite de l'icône */
+.group-header::before {
+  content: "\f0c0"; /* pictogramme "users" de Font Awesome */
+  font-family: var(--font-awesome, "Font Awesome 6 Pro");
+  font-weight: 900;
+  position: absolute;
+  left: var(--ferremont-badge-left, 30px);
+  bottom: 2px;
+  font-size: 9px;
+  line-height: 1;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--ferremont-group-color);
+  color: #1a1410;
+  pointer-events: none;
+  z-index: 1;
+}

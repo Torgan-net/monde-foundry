@@ -1,0 +1,9 @@
+{
+  "id": "swade-tweaks",
+  "title": "SWADE – Réglages",
+  "version": "1.0.0",
+  "compatibility": { "minimum": "14", "verified": "14" },
+  "relationships": { "systems": [{ "id": "swade", "type": "system" }] },
+  "esmodules": ["main.js"],
+  "styles": ["styles.css"]
+}
