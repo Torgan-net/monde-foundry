@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  *  COMBATS DE MASSE — SWADE (Foundry VTT)
- *  Version : 2.9.0 — 2026-11-03
+ *  Version : 2.12.0 — 2026-11-05
  * ============================================================================
  *  Historique résumé (voir les échanges précédents pour le détail complet) :
  *    1.x — Premières versions : état partagé, socketlib, UI MJ/joueur.
@@ -112,6 +112,41 @@
  *                enregistrement de l'état (hook createSetting, en plus de
  *                updateSetting).
  *
+ *    2.10.0 — Confort de jeu round après round :
+ *              - Les Jokers ajoutés à l'Action de combat RESTENT inscrits
+ *                d'un round à l'autre (remis "en attente" après le jet de
+ *                Stratégie) ; on retire au besoin avec ✕.
+ *              - La compétence choisie pour chaque Joker (et celle de
+ *                Stratégie de chaque commandant) est mémorisée dans l'état
+ *                partagé : plus de retour à la première de la liste à
+ *                chaque rafraîchissement, d'un round à l'autre comme après
+ *                rechargement de la macro.
+ *              - Le jet en attente de validation est désormais PARTAGÉ :
+ *                le joueur voit son total et peut relancer avec un Jeton
+ *                (ou ajouter +d6) depuis son propre écran, sans attendre le
+ *                MJ ; le MJ garde la validation (✔, ☠, ✖) et la correction
+ *                du total, répercutée chez le joueur.
+ *
+ *    2.11.0 — Pertes et issue du combat :
+ *              - Juste après le jet de Stratégie (avant les Moral), une
+ *                carte de chat donne explicitement les unités de combat
+ *                perdues par chaque camp ; le tableau de bord affiche aussi
+ *                "−n ce round" sur chaque camp.
+ *              - Fin du combat selon les règles : un camp à 0 marqueur, ou
+ *                un échec au jet de Moral (retraite ; échec critique =
+ *                déroute) ; deux échecs/anéantissements → aucun vainqueur.
+ *                Le combat est alors verrouillé (bannière "Combat terminé"
+ *                + bouton "Nouveau combat").
+ *              - Carte d'issue dans le chat : vainqueur, récit court,
+ *                nombre de rounds, unités restantes, hauts faits.
+ *
+ *    2.12.0 — Case "⚙ Sans moral" par camp (Configuration) : machines,
+ *             insectes, zombies… Ce camp ne fait jamais de jet de Moral
+ *             (après la Stratégie comme après "Une armée à lui seul"), donc
+ *             ne peut ni battre en retraite ni être mis en déroute : il se
+ *             bat jusqu'à son dernier marqueur. L'outil MJ "Forcer un
+ *             Moral" reste possible si le MJ le décide explicitement.
+ *
  *  NOTE sur les avertissements de la console : les messages "The V1
  *  Application framework is deprecated" et "You are accessing the global
  *  'Actors'..." sont des avertissements de dépréciation émis par Foundry
@@ -151,7 +186,7 @@
   // 0. CONFIGURATION — à adapter si besoin
   // ==========================================================================
   const MC_CONFIG = {
-    VERSION: "2.9.0",
+    VERSION: "2.12.0",
     NAMESPACE: "mass-combat-macro",
     // Noms de compétences en ANGLAIS (ceux du système SWADE de base) : ce
     // sont eux qui doivent correspondre aux Items de compétence sur les
@@ -196,10 +231,10 @@
       camps: [
         { id: "A", name: "Camp A", color: "#7a1f1f", forceMarkers: 10, startMarkers: 10,
           modifiers: [], actionMods: [], moraleMods: [], commandantId: null,
-          fortified: false, fearless: false, pinned: false, routed: false },
+          fortified: false, fearless: false, pinned: false, noMorale: false, routed: false },
         { id: "B", name: "Camp B", color: "#1f3a5f", forceMarkers: 10, startMarkers: 10,
           modifiers: [], actionMods: [], moraleMods: [], commandantId: null,
-          fortified: false, fearless: false, pinned: false, routed: false },
+          fortified: false, fearless: false, pinned: false, noMorale: false, routed: false },
       ],
       // Marqueurs de forces au début du round en cours, pour calculer le
       // récapitulatif ("marqueurs perdus ce round").
@@ -214,6 +249,13 @@
       // userId -> { campId, ammo, pp }
       playerResources: {},
       log: [], // { round, text }
+      // Historique des jets de Stratégie (pour le récap de fin de combat)
+      history: [],   // { round, totalA, totalB, lossA, lossB, winnerId|null, prowess }
+      highlights: [], // { round, actorName, campId, summary } — Prouesses, échecs critiques
+      moraleFailures: [], // { campId, crit } — échecs de Moral du round en cours
+      // Fin de combat : { type, winnerId, loserId, reason, round } ou null
+      ended: null,
+      endAnnounced: false,
     };
   }
 
@@ -350,9 +392,51 @@
     },
   };
 
+  /** Ajoute un camp à la file des jets de Moral — sauf s'il est réglé
+   *  "Sans moral" (machines, insectes, zombies…) : il ne fait jamais de jet
+   *  de Moral, donc ne peut ni battre en retraite ni être mis en déroute ;
+   *  il se bat jusqu'à son dernier marqueur. Retourne true si mis en file. */
+  function queueMoraleFor(state, camp, { force = false } = {}) {
+    if (!camp || state.ended) return false;
+    if (camp.noMorale && !force) {
+      addLog(state, `${camp.name} n'a pas de moral : pas de jet de Moral.`);
+      return false;
+    }
+    state.moraleQueue ??= [];
+    if (!state.moraleQueue.includes(camp.id)) state.moraleQueue.push(camp.id);
+    return true;
+  }
+
+  /** Marque la fin du combat (une seule fois). Plus de Moral à faire. */
+  function setEnded(state, ended) {
+    if (state.ended) return state;
+    state.ended = { ...ended, round: state.round };
+    state.moraleQueue = [];
+    state.moraleFailures = [];
+    for (const p of (state.roundActions || [])) p.pending = null;
+    addLog(state, "🏁 Fin du combat de masse.");
+    return state;
+  }
+
+  /** Un camp à 0 marqueur → combat terminé (les deux à 0 → anéantissement mutuel). */
+  function checkAnnihilation(state) {
+    if (state.ended) return state;
+    const [a, b] = state.camps;
+    const deadA = a.forceMarkers <= 0, deadB = b.forceMarkers <= 0;
+    if (deadA && deadB) return setEnded(state, { type: "mutual", reason: "annihilated", winnerId: null, loserId: null });
+    if (deadA) return setEnded(state, { type: "victory", reason: "annihilated", winnerId: b.id, loserId: a.id });
+    if (deadB) return setEnded(state, { type: "victory", reason: "annihilated", winnerId: a.id, loserId: b.id });
+    return state;
+  }
+
   // Fonctions de mutation d'état, exécutées côté MJ uniquement, appelées
   // soit localement (si l'utilisateur courant est MJ), soit via socket.
   const MC_PATCHERS = {
+    markEndAnnounced(state) {
+      state.endAnnounced = true;
+      return state;
+    },
+
     setupCamps(state, campA, campB) {
       // On préserve commandantId : il a déjà pu être choisi dans l'écran
       // Configuration avant de cliquer sur "Démarrer le combat" (le
@@ -365,6 +449,12 @@
       state.log = [];
       state.roundActions = [];
       state.moraleQueue = [];
+      state.history = [];
+      state.highlights = [];
+      state.moraleFailures = [];
+      state.ended = null;
+      state.endAnnounced = false;
+      for (const c of state.camps) { c.routed = false; c.retreated = false; }
       snapshotRoundStartMarkers(state);
       addLog(state, `Mise en place : ${state.camps[0].name} (${state.camps[0].forceMarkers} marqueurs) contre ${state.camps[1].name} (${state.camps[1].forceMarkers} marqueurs).`);
       return state;
@@ -410,6 +500,11 @@
     setFlag(state, campId, flag, value) {
       const camp = state.camps.find(c => c.id === campId);
       camp[flag] = value;
+      if (flag === "noMorale") {
+        addLog(state, value ? `${camp.name} est réglé "Sans moral" : aucun jet de Moral.` : `${camp.name} fait de nouveau ses jets de Moral.`);
+        // Décoché/coché en cours de round : on retire un Moral en attente.
+        if (value) state.moraleQueue = (state.moraleQueue || []).filter(id => id !== campId);
+      }
       return state;
     },
 
@@ -423,6 +518,7 @@
           return state;
         }
       }
+      if ((camp.commandantId || null) !== (actorId || null)) camp.strategieSkill = null;
       camp.commandantId = actorId || null;
       return state;
     },
@@ -460,7 +556,7 @@
       state.roundActions ??= [];
       state.roundActions.push({ id: foundry.utils.randomID(), actorId, actorName, campId, status: "pending", summary: null });
       const camp = state.camps.find(c => c.id === campId);
-      addLog(state, `${actorName} rejoint l'Action de combat pour ${camp?.name ?? "?"} ce round.`);
+      addLog(state, `${actorName} rejoint l'Action de combat pour ${camp?.name ?? "?"} (reste inscrit d'un round à l'autre).`);
       return state;
     },
 
@@ -476,7 +572,36 @@
 
     markParticipantDone(state, participantId, summary) {
       const p = (state.roundActions || []).find(x => x.id === participantId);
-      if (p) { p.status = "done"; p.summary = summary; }
+      if (p) {
+        p.status = "done"; p.summary = summary; p.pending = null;
+        if (/^(Prouesse|Échec critique)/.test(summary || "")) {
+          state.highlights ??= [];
+          state.highlights.push({ round: state.round + 1, actorName: p.actorName, campId: p.campId, summary });
+        }
+      }
+      return state;
+    },
+
+    /** Compétence choisie pour un participant : stockée dans l'état partagé,
+     *  donc conservée entre les rendus, les rounds, et visible MJ + joueur. */
+    setParticipantSkill(state, participantId, skill) {
+      const p = (state.roundActions || []).find(x => x.id === participantId);
+      if (p) p.skill = skill || null;
+      return state;
+    },
+
+    /** Jet en attente de validation (partagé : le joueur peut relancer avec
+     *  un Jeton depuis SON client sans attendre le MJ). pending = null pour
+     *  effacer. */
+    setParticipantPending(state, participantId, pending) {
+      const p = (state.roundActions || []).find(x => x.id === participantId);
+      if (p) p.pending = pending ? { ...(p.pending || {}), ...pending } : null;
+      return state;
+    },
+
+    setStrategieSkill(state, campId, skill) {
+      const camp = state.camps.find(c => c.id === campId);
+      if (camp) camp.strategieSkill = skill || null;
       return state;
     },
 
@@ -518,9 +643,9 @@
           break;
         case "Une armée à lui seul":
           enemyCamp.forceMarkers = Math.max(0, enemyCamp.forceMarkers - 1);
-          state.moraleQueue ??= [];
-          if (!state.moraleQueue.includes(enemyCamp.id)) state.moraleQueue.push(enemyCamp.id);
-          addLog(state, `${enemyCamp.name} perd immédiatement 1 marqueur de forces (Une armée à lui seul) ! Un jet de Moral est à faire pour ${enemyCamp.name} même s'il remporte le round.`);
+          addLog(state, `${enemyCamp.name} perd immédiatement 1 marqueur de forces (Une armée à lui seul) !${enemyCamp.noMorale ? "" : ` Un jet de Moral est à faire pour ${enemyCamp.name} même s'il remporte le round.`}`);
+          queueMoraleFor(state, enemyCamp);
+          checkAnnihilation(state);
           break;
       }
       return state;
@@ -529,8 +654,9 @@
     // ---- Moral ----
 
     queueMoraleCheck(state, campId) {
-      state.moraleQueue ??= [];
-      if (!state.moraleQueue.includes(campId)) state.moraleQueue.push(campId);
+      // Outil MJ "Forcer un Moral" : décision explicite, appliquée même à un
+      // camp réglé "Sans moral".
+      queueMoraleFor(state, state.camps.find(c => c.id === campId), { force: true });
       return state;
     },
 
@@ -539,8 +665,11 @@
       state.round += 1;
       const diff = campATotal - campBTotal;
       const [campA, campB] = state.camps;
+      const beforeA = campA.forceMarkers, beforeB = campB.forceMarkers;
+      let winnerId = null, prowess = false;
       state.moraleQueue ??= [];
-      const queueMorale = (camp) => { if (!state.moraleQueue.includes(camp.id)) state.moraleQueue.push(camp.id); };
+      state.moraleFailures = [];
+      const queueMorale = (camp) => queueMoraleFor(state, camp);
       let outcome;
       if (diff === 0) {
         campA.forceMarkers = Math.max(0, campA.forceMarkers - 1);
@@ -551,6 +680,8 @@
         const winner = diff > 0 ? campA : campB;
         const loser = diff > 0 ? campB : campA;
         const margin = Math.abs(diff);
+        winnerId = winner.id;
+        prowess = margin >= 4;
         if (margin >= 4) {
           loser.forceMarkers = Math.max(0, loser.forceMarkers - 2);
           queueMorale(loser);
@@ -569,24 +700,52 @@
           addLog(state, `${camp.name} n'a plus de marqueurs de forces : l'armée est rompue !`);
         }
       }
+      state.history ??= [];
+      state.history.push({
+        round: state.round, totalA: campATotal, totalB: campBTotal,
+        lossA: beforeA - campA.forceMarkers, lossB: beforeB - campB.forceMarkers,
+        winnerId, prowess,
+      });
+      checkAnnihilation(state);
       campA.actionMods = [];
       campB.actionMods = [];
-      state.roundActions = [];
+      // Les participants RESTENT d'un round à l'autre (plus simple d'en
+      // retirer que d'en rajouter) : on les remet simplement en attente, en
+      // gardant camp et compétence choisie.
+      for (const p of (state.roundActions || [])) {
+        p.status = "pending"; p.summary = null; p.pending = null;
+      }
       return state;
     },
 
     applyMoraleResult(state, campId, total, target, critFail) {
       const camp = state.camps.find(c => c.id === campId);
+      state.moraleFailures ??= [];
       if (critFail) {
         camp.routed = true;
+        state.moraleFailures.push({ campId, crit: true });
         addLog(state, `Moral de ${camp.name} : échec critique (${total} vs ${target}) — l'armée est en déroute !`);
       } else if (total < target) {
+        camp.retreated = true;
+        state.moraleFailures.push({ campId, crit: false });
         addLog(state, `Moral de ${camp.name} : échec (${total} vs ${target}) — l'armée entame une retraite en ordre.`);
       } else {
         addLog(state, `Moral de ${camp.name} : succès (${total} vs ${target}) — les troupes tiennent leurs positions.`);
       }
       camp.moraleMods = [];
       state.moraleQueue = (state.moraleQueue || []).filter(id => id !== campId);
+      // Tous les Moral du round sont faits : un échec met fin au combat
+      // (retraite ou déroute) ; deux échecs → les deux armées se retirent.
+      if (!state.ended && state.moraleQueue.length === 0 && state.moraleFailures.length) {
+        const fails = state.moraleFailures;
+        if (fails.length >= 2) {
+          setEnded(state, { type: "mutual", reason: "retreat", winnerId: null, loserId: null });
+        } else {
+          const loserId = fails[0].campId;
+          const winnerId = state.camps.find(c => c.id !== loserId)?.id ?? null;
+          setEnded(state, { type: "victory", reason: fails[0].crit ? "rout" : "retreat", winnerId, loserId });
+        }
+      }
       return state;
     },
 
@@ -1042,10 +1201,13 @@
         {{#unless camp.hidden}}
         <div class="mc-bar"><span style="width: {{camp.pct}}%"></span></div>
         <div class="mc-chip-tags">
+          {{#if camp.roundLoss}}<span class="mc-flag mc-flag-loss" title="Unités de combat perdues au round {{camp.roundLossRound}}">R{{camp.roundLossRound}} : −{{camp.roundLoss}}</span>{{/if}}
           {{#if camp.routed}}<span class="mc-flag mc-flag-bad" title="En déroute">🏳 Déroute</span>{{/if}}
+          {{#if camp.retreated}}<span class="mc-flag mc-flag-bad" title="Retraite">↩ Retraite</span>{{/if}}
           {{#if camp.fortified}}<span class="mc-flag" title="Fortifié (+2 moral)">🏰</span>{{/if}}
           {{#if camp.fearless}}<span class="mc-flag" title="Morts-vivants / sans peur (+2 moral)">💀</span>{{/if}}
           {{#if camp.pinned}}<span class="mc-flag" title="Acculé (+2 moral)">🧱</span>{{/if}}
+          {{#if camp.noMorale}}<span class="mc-flag" title="Sans moral : aucun jet de Moral, se bat jusqu'au dernier marqueur">⚙</span>{{/if}}
           {{#if camp.modifiers.length}}<span class="mc-flag" title="Modificateurs permanents : {{camp.modifiersText}}">⚑ {{camp.modifiersTotalLabel}}</span>{{/if}}
           {{#if camp.actionMods.length}}<span class="mc-flag mc-flag-round" title="En attente pour le prochain jet de Stratégie : {{camp.actionModsText}}">⏱ {{camp.actionModsTotalLabel}}</span>{{/if}}
         </div>
@@ -1084,7 +1246,7 @@
       <button data-action="addParticipant" class="mc-icon-btn" title="Ajouter à l'Action de combat">＋</button>
     </div>
     {{/if}}{{/if}}
-    {{#unless participants.length}}<p class="mc-empty">Aucun participant ce round.</p>{{/unless}}
+    {{#unless participants.length}}<p class="mc-empty">Aucun participant. Les Jokers ajoutés restent inscrits d'un round à l'autre.</p>{{/unless}}
     <ul class="mc-plist">
       {{#each participants as |p|}}
       <li class="mc-p {{#if p.done}}mc-p-done{{/if}}" style="--camp: {{p.campColor}}">
@@ -1102,22 +1264,26 @@
           {{#unless p.done}}{{#unless p.pending}}
           <div class="mc-row">
             <select class="mc-participant-skill mc-grow" data-participant="{{p.id}}" title="Compétence">
-              {{#each p.skillChoices as |s|}}<option value="{{s}}">{{s}}</option>{{/each}}
-              {{#unless p.hasNativeUnskilled}}<option value="__unskilled__">Unskilled (d4-2)</option>{{/unless}}
-              <option value="__custom__">Autre…</option>
+              {{#each p.skillChoices as |s|}}<option value="{{s}}" {{#if (eq s p.skillSelect)}}selected{{/if}}>{{s}}</option>{{/each}}
+              {{#unless p.hasNativeUnskilled}}<option value="__unskilled__" {{#if (eq p.skillSelect "__unskilled__")}}selected{{/if}}>Unskilled (d4-2)</option>{{/unless}}
+              <option value="__custom__" {{#if p.isCustom}}selected{{/if}}>Autre…</option>
             </select>
-            <input type="text" class="mc-participant-custom mc-hide" data-participant="{{p.id}}" placeholder="Nom exact">
+            <input type="text" class="mc-participant-custom {{#unless p.isCustom}}mc-hide{{/unless}}" data-participant="{{p.id}}" placeholder="Nom exact" value="{{p.skillCustom}}">
             <button data-action="rollParticipant" data-participant="{{p.id}}" class="mc-roll-btn" title="{{#if p.waitingFor}}Le jet s'ouvrira chez {{p.waitingFor}}{{else}}Lancer le jet{{/if}}">🎲</button>
           </div>
           {{/unless}}{{/unless}}
           {{#if p.pending}}
           <div class="mc-confirm">
-            <input type="number" class="mc-pending-action-total" data-participant="{{p.id}}" value="{{p.pending.total}}" title="Total (corrige si besoin)">
-            {{#if p.pending.bennies}}<button data-action="rerollParticipant" data-participant="{{p.id}}" class="mc-icon-btn" title="Relancer avec un Jeton ({{p.pending.bennies}} dispo.) — garde le meilleur">🔄<sup>{{p.pending.bennies}}</sup></button>{{/if}}
+            <input type="number" class="mc-pending-action-total" data-participant="{{p.id}}" value="{{p.pending.total}}" title="Total{{#if @root.isGM}} (corrige si besoin){{/if}}" {{#unless @root.isGM}}readonly{{/unless}}>
+            {{#if p.canReroll}}{{#if p.pending.bennies}}<button data-action="rerollParticipant" data-participant="{{p.id}}" class="mc-icon-btn" title="Relancer avec un Jeton ({{p.pending.bennies}} dispo.) — garde le meilleur">🔄<sup>{{p.pending.bennies}}</sup></button>{{/if}}{{/if}}
             <button data-action="addD6Participant" data-participant="{{p.id}}" class="mc-icon-btn" title="Ajouter 1d6 explosif (Conviction après coup)">+d6</button>
+            {{#if @root.isGM}}
             <label class="mc-crit" title="Échec critique (1 naturel)"><input type="checkbox" class="mc-pending-action-crit" data-participant="{{p.id}}">☠</label>
             <button data-action="confirmParticipant" data-participant="{{p.id}}" class="mc-ok-btn" title="Résoudre">✔</button>
             <button data-action="cancelParticipant" data-participant="{{p.id}}" class="mc-icon-btn" title="Annuler le jet">✖</button>
+            {{else}}
+            <span class="mc-hint">validation par le MJ</span>
+            {{/if}}
           </div>
           {{/if}}
         {{/if}}
@@ -1151,6 +1317,7 @@
         <label class="mc-toggle" title="Fortifié (+2 moral)"><input type="checkbox" data-action="flag" data-camp="{{camp.id}}" data-flag="fortified" {{#if camp.fortified}}checked{{/if}}>🏰 Fortifié</label>
         <label class="mc-toggle" title="Morts-vivants / sans peur (+2 moral)"><input type="checkbox" data-action="flag" data-camp="{{camp.id}}" data-flag="fearless" {{#if camp.fearless}}checked{{/if}}>💀 Sans peur</label>
         <label class="mc-toggle" title="Acculé (+2 moral)"><input type="checkbox" data-action="flag" data-camp="{{camp.id}}" data-flag="pinned" {{#if camp.pinned}}checked{{/if}}>🧱 Acculé</label>
+        <label class="mc-toggle" title="Sans moral (machines, insectes, zombies…) : ce camp ne fait jamais de jet de Moral et se bat jusqu'au dernier marqueur"><input type="checkbox" data-action="flag" data-camp="{{camp.id}}" data-flag="noMorale" {{#if camp.noMorale}}checked{{/if}}>⚙ Sans moral</label>
       </div>
       <div class="mc-row">
         <span class="mc-lbl">🎖</span>
@@ -1198,6 +1365,13 @@
 
     {{#if isRoundView}}
       ${SCOREBOARD_BLOCK}
+      {{#if ended}}
+      <div class="mc-ended" style="--camp: {{ended.color}}">
+        <div class="mc-ended-title">🏁 Combat terminé</div>
+        <div>{{ended.headline}}</div>
+        <button data-action="endCombat" class="mc-main-btn">🔄 Nouveau combat (réinitialiser)</button>
+      </div>
+      {{else}}
       {{#if hasMoraleQueue}}<button data-action="navMorale" class="mc-alert-btn">⚠ {{moraleQueueCount}} jet(s) de Moral à faire</button>{{/if}}
 
       ${PARTICIPANTS_BLOCK}
@@ -1228,6 +1402,7 @@
       {{else}}
       <button data-action="rollStrategie" class="mc-main-btn" {{#unless canRollStrategie}}disabled title="{{strategieBlockReason}}"{{/unless}}>⚔ Jet de Stratégie</button>
       {{#unless canRollStrategie}}<p class="mc-hint">{{strategieBlockReason}}</p>{{/unless}}
+      {{/if}}
       {{/if}}
 
       <details class="mc-fold" data-section="tools" {{#if open.tools}}open{{/if}}>
@@ -1297,7 +1472,14 @@
     {{else}}
       <div class="mc-section-head"><span>▶ Round {{state.round}}</span><span class="mc-phase">{{phaseLabel}}</span></div>
       ${SCOREBOARD_BLOCK}
+      {{#if ended}}
+      <div class="mc-ended" style="--camp: {{ended.color}}">
+        <div class="mc-ended-title">🏁 Combat terminé</div>
+        <div>{{ended.headline}}</div>
+      </div>
+      {{else}}
       ${PARTICIPANTS_BLOCK}
+      {{/if}}
 
       <details class="mc-fold" data-section="perso" {{#if open.perso}}open{{/if}}>
         <summary>🎒 Mon camp et mes ressources</summary>
@@ -1357,11 +1539,18 @@
         // Si la fiche a déjà une compétence "Unskilled Attempt" telle
         // quelle, on ne rajoute pas notre option synthétique en double.
         const hasNativeUnskilled = skillChoices.some(s => s.trim().toLowerCase() === "unskilled attempt");
-        const rawPending = this._pendingActions?.[p.id] ?? null;
-        // Nombre de Jetons toujours recalculé "à chaud" (pas figé au
-        // moment du jet), pour que le bouton de relance reflète l'état
-        // réel de la fiche.
-        const pending = rawPending ? { ...rawPending, bennies: actor?.system?.bennies?.value ?? 0 } : null;
+        // Jet en attente : dans l'état PARTAGÉ (visible MJ + joueur). Jetons
+        // recalculés "à chaud" depuis la fiche.
+        const pending = p.pending ? { ...p.pending, bennies: actor?.system?.bennies?.value ?? 0 } : null;
+        // Compétence sélectionnée : celle mémorisée, sinon défaut stable
+        // (Fighting si présent, sinon la première). Ne change plus qu'à
+        // l'initiative de l'utilisateur.
+        const defaultSkill = skillChoices.find(s => s.toLowerCase() === "fighting") ?? skillChoices[0] ?? "__unskilled__";
+        const skill = p.skill || defaultSkill;
+        const isCustom = !!skill && skill !== "__unskilled__" && !skillChoices.includes(skill);
+        const skillSelect = isCustom ? "__custom__" : skill;
+        // Relance par le JOUEUR lui-même (sur son personnage) ou par le MJ.
+        const canReroll = !!pending && (game.user.isGM || actor?.isOwner);
         // À qui le jet sera-t-il demandé ? (joueur connecté propriétaire,
         // autre que soi) — affiché pour que le MJ sache que la fenêtre de
         // jet s'ouvrira chez ce joueur.
@@ -1377,7 +1566,11 @@
           waitingFor,
           skillChoices,
           hasNativeUnskilled,
+          skillSelect,
+          skillCustom: isCustom ? skill : "",
+          isCustom,
           pending,
+          canReroll,
         };
       });
     }
@@ -1387,15 +1580,33 @@
       const sum = arr => (arr || []).reduce((a, m) => a + Number(m.value || 0), 0);
       const sign = n => (n >= 0 ? `+${n}` : `${n}`);
       const pct = camp.startMarkers > 0 ? Math.max(0, Math.min(100, Math.round(100 * camp.forceMarkers / camp.startMarkers))) : 0;
+      // Pertes du dernier jet de Stratégie (restent affichées jusqu'au suivant).
+      const st = getState();
+      const h = (st.history || []).at(-1);
+      const idx = st.camps.findIndex(c => c.id === camp.id);
+      const roundLoss = h ? (idx === 0 ? h.lossA : h.lossB) : 0;
+      const roundLossRound = h?.round ?? 0;
       return {
         ...camp,
         pct,
+        roundLoss,
+        roundLossRound,
         modifiersText: describeMods(camp.modifiers || []),
         modifiersTotalLabel: sign(sum(camp.modifiers)),
         actionModsText: describeMods(camp.actionMods || []),
         actionModsTotalLabel: sign(sum(camp.actionMods)),
         ...extra,
       };
+    }
+
+    _endViewData(state) {
+      const e = state.ended;
+      const winner = state.camps.find(c => c.id === e.winnerId);
+      const loser = state.camps.find(c => c.id === e.loserId);
+      let headline;
+      if (e.type === "mutual") headline = e.reason === "annihilated" ? "Aucun vainqueur : anéantissement mutuel" : "Aucun vainqueur : les deux armées se retirent";
+      else headline = `Victoire de ${winner?.name} — ${loser?.name} ${e.reason === "annihilated" ? "est anéantie" : e.reason === "rout" ? "est en déroute" : "bat en retraite"}`;
+      return { headline, color: winner?.color ?? "#7a1f1f" };
     }
 
     _commonViewData(state, participants) {
@@ -1411,7 +1622,9 @@
         strategieBlockReason,
         open: this._open ?? {},
         isGM: game.user.isGM,
+        ended: state.ended ? this._endViewData(state) : null,
         phaseLabel: !state.initialized ? ""
+          : state.ended ? "🏁 Combat terminé"
           : moraleQueue.length ? "⚠ Jets de Moral en cours"
           : pendingCount ? `⏳ Actions de combat : ${participants.length - pendingCount}/${participants.length} résolues`
           : "⚔ En attente du jet de Stratégie",
@@ -1443,7 +1656,8 @@
           if (commandant) {
             strategieSkillChoices = getActorSkillNames(commandant);
             this._strategieSkill ??= {};
-            if (!this._strategieSkill[camp.id] || !strategieSkillChoices.includes(this._strategieSkill[camp.id])) {
+            if (camp.strategieSkill) this._strategieSkill[camp.id] = camp.strategieSkill;
+            if (!this._strategieSkill[camp.id] || (this._strategieSkill[camp.id] !== UNSKILLED_VALUE && !strategieSkillChoices.includes(this._strategieSkill[camp.id]))) {
               // Choix par défaut : "Battle" si présent, sinon la première
               // compétence de la fiche, sinon Tentative sans formation.
               this._strategieSkill[camp.id] = strategieSkillChoices.includes(MC_CONFIG.SKILL_STRATEGIE)
@@ -1553,9 +1767,18 @@
       });
 
       // Champ "nom exact" affiché seulement si "Autre…" est choisi.
-      html.on("change", ".mc-participant-skill", (ev) => {
+      // La compétence choisie est mémorisée dans l'état partagé.
+      html.on("change", ".mc-participant-skill", async (ev) => {
         const id = ev.currentTarget.dataset.participant;
-        html.find(`.mc-participant-custom[data-participant='${id}']`).toggleClass("mc-hide", ev.currentTarget.value !== "__custom__");
+        const value = ev.currentTarget.value;
+        const custom = html.find(`.mc-participant-custom[data-participant='${id}']`);
+        custom.toggleClass("mc-hide", value !== "__custom__");
+        if (value === "__custom__") { custom.trigger("focus"); return; } // enregistré à la saisie
+        await applyPatch("setParticipantSkill", id, value);
+      });
+      html.on("change", ".mc-participant-custom", async (ev) => {
+        const v = ev.currentTarget.value.trim();
+        if (v) await applyPatch("setParticipantSkill", ev.currentTarget.dataset.participant, v);
       });
 
       // ---- Actions communes (MJ + joueurs) ----
@@ -1588,7 +1811,6 @@
       html.on("click", "[data-action='removeParticipant']", async (ev) => {
         const participantId = ev.currentTarget.dataset.participant;
         await applyPatch("removeParticipant", participantId);
-        if (this._pendingActions) delete this._pendingActions[participantId];
         this.render();
       });
 
@@ -1613,8 +1835,8 @@
           this._rolling.delete(participantId);
         }
         if (total === null || total === undefined) { ui.notifications.warn("Jet annulé ou sans réponse."); this.render(); return; }
-        this._pendingActions ??= {};
-        this._pendingActions[participantId] = { total, skillName, actorId: p.actorId, actorName: p.actorName, campId: p.campId };
+        if (skillName !== p.skill) await applyPatch("setParticipantSkill", participantId, skillName);
+        await applyPatch("setParticipantPending", participantId, { total, skillName });
         this.render();
       });
 
@@ -1622,17 +1844,31 @@
         const participantId = ev.currentTarget.dataset.participant;
         const input = html.find(`.mc-pending-action-total[data-participant='${participantId}']`)[0];
         await rollExplodingD6AndAdd(input);
+        await applyPatch("setParticipantPending", participantId, { total: Number(input.value) });
       });
 
+      // Correction manuelle du total par le MJ : partagée avec le joueur.
+      html.on("change", ".mc-pending-action-total", async (ev) => {
+        if (!game.user.isGM) return;
+        await applyPatch("setParticipantPending", ev.currentTarget.dataset.participant, { total: Number(ev.currentTarget.value) });
+      });
+
+      // Relance avec un Jeton : le JOUEUR peut le faire lui-même, depuis son
+      // client, sans attendre le MJ (le MJ le peut aussi : il est alors
+      // délégué au joueur propriétaire s'il est connecté).
       html.on("click", "[data-action='rerollParticipant']", async (ev) => {
         const participantId = ev.currentTarget.dataset.participant;
-        const pending = this._pendingActions?.[participantId];
-        if (!pending) return;
-        const actor = game.actors.get(pending.actorId);
-        const input = html.find(`.mc-pending-action-total[data-participant='${participantId}']`)[0];
-        const currentTotal = Number(input.value);
-        const kept = await rerollForActor(actor, currentTotal, { skillName: pending.skillName, kind: "skill", flavor: `Action de combat — ${pending.actorName}` });
-        this._pendingActions[participantId].total = kept;
+        const p = (getState().roundActions || []).find(x => x.id === participantId);
+        if (!p?.pending) return;
+        const actor = game.actors.get(p.actorId);
+        if (!actor) return;
+        ev.currentTarget.disabled = true;
+        const currentTotal = Number(p.pending.total) || 0;
+        const spec = { skillName: p.pending.skillName, kind: "skill", flavor: `Action de combat — ${p.actorName}` };
+        const kept = actor.isOwner && !game.user.isGM
+          ? await spendBennyAndReroll(actor, currentTotal, async () => await rollSkillTotal(actor, spec.skillName, [], spec.flavor))
+          : await rerollForActor(actor, currentTotal, spec);
+        await applyPatch("setParticipantPending", participantId, { total: kept });
         this.render();
       });
 
@@ -1642,16 +1878,14 @@
         const critInput = html.find(`.mc-pending-action-crit[data-participant='${participantId}']`)[0];
         const total = Number(totalInput.value);
         const critFail = !!critInput?.checked;
-        const pending = this._pendingActions?.[participantId];
-        if (!pending) return;
-        await this._resolveActionOutcome(participantId, pending.campId, pending.actorId, pending.actorName, total, pending.skillName, critFail);
-        delete this._pendingActions[participantId];
+        const p = (getState().roundActions || []).find(x => x.id === participantId);
+        if (!p?.pending) return;
+        await this._resolveActionOutcome(participantId, p.campId, p.actorId, p.actorName, total, p.pending.skillName, critFail);
         this.render();
       });
 
-      html.on("click", "[data-action='cancelParticipant']", (ev) => {
-        const participantId = ev.currentTarget.dataset.participant;
-        if (this._pendingActions) delete this._pendingActions[participantId];
+      html.on("click", "[data-action='cancelParticipant']", async (ev) => {
+        await applyPatch("setParticipantPending", ev.currentTarget.dataset.participant, null);
         this.render();
       });
 
@@ -1724,9 +1958,10 @@
         this.render();
       });
 
-      html.on("change", ".mc-strategie-skill", (ev) => {
+      html.on("change", ".mc-strategie-skill", async (ev) => {
         this._strategieSkill ??= {};
         this._strategieSkill[ev.currentTarget.dataset.camp] = ev.currentTarget.value;
+        await applyPatch("setStrategieSkill", ev.currentTarget.dataset.camp, ev.currentTarget.value);
       });
 
       html.on("click", "[data-action='clearParticipants']", async () => {
@@ -1758,7 +1993,7 @@
           title: "Terminer le combat de masse ?",
           content: `<div class="mc-dialog-body">
             <p class="mc-dialog-lead">🏳 Tout réinitialiser ?</p>
-            <p>Camps, marqueurs, journal, participants et ressources repartent à zéro. Un bilan final est posté dans le chat.</p>
+            <p>Camps, marqueurs, journal, participants et ressources repartent à zéro.${getState().ended ? "" : " Un bilan final est posté dans le chat."}</p>
             <p class="mc-dialog-warn">Action irréversible.</p>
           </div>`,
           buttons: [{ action: "end", label: "🏳 Terminer" }, { action: "cancel", label: "Annuler" }],
@@ -1766,7 +2001,8 @@
         });
         if (choice !== "end") return;
         const state = getState();
-        await this._postRoundRecap(state, { final: true });
+        // Si l'issue a déjà été annoncée, pas de second bilan.
+        if (!state.ended && state.initialized) await this._postRoundRecap(state, { final: true });
         await applyPatch("resetAll");
         this._pendingActions = {};
         this._pendingStrategie = null;
@@ -1777,6 +2013,7 @@
 
       html.on("click", "[data-action='rollStrategie']", async () => {
         const state = getState();
+        if (state.ended) { ui.notifications.info("Le combat est terminé."); return; }
         if (!(state.roundActions || []).every(p => p.status === "done")) {
           ui.notifications.warn("Résous d'abord toutes les Actions de combat en attente.");
           return;
@@ -1847,7 +2084,11 @@
         await applyPatch("applyStrategieResult", { campATotal: totalA, campBTotal: totalB, campALabel, campBLabel });
         this._pendingStrategie = null;
         const state = getState();
-        if ((state.moraleQueue || []).length > 0) {
+        await this._postStrategieLosses(state);
+        if (state.ended) {
+          this._view = "round";
+          await this._announceEnd(state);
+        } else if ((state.moraleQueue || []).length > 0) {
           this._view = "morale";
         } else {
           this._view = "round";
@@ -1910,7 +2151,11 @@
         await applyPatch("applyMoraleResult", campId, total, MC_CONFIG.TARGET_NUMBER, critFail);
         delete this._pendingMorale[campId];
         const state = getState();
-        if ((state.moraleQueue || []).length === 0) {
+        if (state.ended) {
+          this._pendingMorale = {};
+          this._view = "round";
+          await this._announceEnd(state);
+        } else if ((state.moraleQueue || []).length === 0) {
           this._view = "round";
           await this._postRoundRecap(state);
           await applyPatch("snapshotRoundStart");
@@ -1989,6 +2234,8 @@
       }
 
       await applyPatch("markParticipantDone", participantId, summary);
+      const after = getState();
+      if (after.ended && !after.endAnnounced) await this._announceEnd(after);
     }
 
     /** Applique N niveaux de Blessure ou de Fatigue sur la fiche, si le
@@ -2022,6 +2269,85 @@
      *  s'il se termine) : marqueurs perdus/restants par camp, en blocs
      *  empilés plutôt qu'un tableau large — bien plus lisible dans la
      *  colonne de chat, souvent étroite. */
+    /** Carte de chat juste après le jet de Stratégie : pertes de chaque
+     *  camp, explicites, AVANT les jets de Moral. */
+    async _postStrategieLosses(state) {
+      const h = (state.history || []).at(-1);
+      if (!h) return;
+      const [a, b] = state.camps;
+      const winner = state.camps.find(c => c.id === h.winnerId);
+      const verdict = !winner ? "Égalité — les deux camps s'usent"
+        : h.prowess ? `Prouesse de <b style="color:${winner.color}">${winner.name}</b>`
+        : `Victoire de <b style="color:${winner.color}">${winner.name}</b>`;
+      const line = (camp, loss, total) => `
+        <div style="display:flex; align-items:center; gap:8px; border-left:5px solid ${camp.color}; padding:4px 8px; margin:5px 0; background:rgba(0,0,0,0.04); border-radius:0 4px 4px 0;">
+          <div style="flex:1; min-width:0;">
+            <div style="font-weight:bold; color:${camp.color}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${camp.name}</div>
+            <div style="font-size:12px; opacity:0.8;">Stratégie : ${total} · reste <b>${camp.forceMarkers}</b>/${camp.startMarkers}</div>
+          </div>
+          <div style="font-size:20px; font-weight:bold; white-space:nowrap; color:${loss > 0 ? "#b30000" : "#2e7d32"};">${loss > 0 ? `−${loss}` : "0"}</div>
+        </div>`;
+      const moraleNote = state.ended ? "" : (state.moraleQueue || []).length
+        ? `<div style="font-size:12px; text-align:center; margin-top:4px;">⚠ Jet de Moral : ${(state.moraleQueue || []).map(id => state.camps.find(c => c.id === id)?.name).filter(Boolean).join(", ")}</div>`
+        : "";
+      await ChatMessage.create({ content: `
+        <div style="border:2px solid #7a1f1f; border-radius:8px; padding:8px 10px; background:rgba(122,31,31,0.05);">
+          <div style="text-align:center; font-weight:bold; font-size:15px;">⚔ Round ${h.round} — unités de combat perdues</div>
+          <div style="text-align:center; font-size:13px; margin:2px 0 4px;">${verdict}</div>
+          ${line(a, h.lossA, h.totalA)}
+          ${line(b, h.lossB, h.totalB)}
+          ${moraleNote}
+        </div>` });
+    }
+
+    /** Poste (une seule fois) la carte d'issue du combat. */
+    async _announceEnd(state) {
+      if (!state.ended || state.endAnnounced) return;
+      await applyPatch("markEndAnnounced");
+      const e = state.ended;
+      const winner = state.camps.find(c => c.id === e.winnerId);
+      const loser = state.camps.find(c => c.id === e.loserId);
+      const W = winner ? `<b style="color:${winner.color}">${winner.name}</b>` : "";
+      const L = loser ? `<b style="color:${loser.color}">${loser.name}</b>` : "";
+      let icon = "🏆", title, story;
+      if (e.type === "mutual") {
+        icon = "⚔";
+        title = "Aucun vainqueur";
+        story = e.reason === "annihilated"
+          ? "Les deux armées se sont anéanties l'une l'autre : il ne reste personne pour revendiquer le champ de bataille."
+          : "Épuisées, les deux armées rompent le combat en même temps et se retirent, chacune de son côté.";
+      } else {
+        title = `Victoire de ${winner.name} !`;
+        story = e.reason === "annihilated"
+          ? `${L} est anéantie : plus une seule unité ne tient le terrain. ${W} reste maîtresse du champ de bataille.`
+          : e.reason === "rout"
+          ? `Le moral de ${L} s'effondre : l'armée se débande et fuit en désordre. ${W} reste maîtresse du champ de bataille.`
+          : `Le moral de ${L} vacille : ses chefs ordonnent la retraite et l'armée se replie en bon ordre. ${W} tient le terrain.`;
+      }
+      const rounds = (state.history || []).length;
+      const roundsTxt = rounds <= 1 ? "un seul round d'affrontement" : `${rounds} rounds d'affrontement`;
+      const wins = id => (state.history || []).filter(h => h.winnerId === id).length;
+      const momentum = winner && rounds > 1 ? ` ${winner.name} a pris l'avantage sur ${wins(winner.id)} round${wins(winner.id) > 1 ? "s" : ""}.` : "";
+      const tally = state.camps.map(c => `
+        <div style="display:flex; align-items:center; gap:6px; border-left:5px solid ${c.color}; padding:3px 8px; margin:4px 0; background:rgba(0,0,0,0.04); border-radius:0 4px 4px 0;">
+          <span style="flex:1; font-weight:bold; color:${c.color}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${c.name}</span>
+          <span style="white-space:nowrap;"><b>${c.forceMarkers}</b>/${c.startMarkers}</span>
+        </div>`).join("");
+      const heroes = (state.highlights || []).filter(h => /^Prouesse/.test(h.summary)).slice(-3);
+      const heroesHtml = heroes.length
+        ? `<div style="font-size:12px; margin-top:6px;"><b>Hauts faits :</b> ${heroes.map(h => `${h.actorName} (round ${h.round})`).join(", ")}.</div>`
+        : "";
+      await ChatMessage.create({ content: `
+        <div style="border:3px double #7a1f1f; border-radius:10px; padding:10px 12px; background:rgba(122,31,31,0.07);">
+          <div style="text-align:center; font-size:26px; line-height:1;">${icon}</div>
+          <div style="text-align:center; font-weight:bold; font-size:17px; margin:4px 0 6px;">${title}</div>
+          <div style="font-size:13px; line-height:1.45; text-align:center;">${story}</div>
+          <div style="font-size:12px; text-align:center; opacity:0.85; margin:6px 0 4px;">Après ${roundsTxt}.${momentum}</div>
+          ${tally}
+          ${heroesHtml}
+        </div>` });
+    }
+
     async _postRoundRecap(state, { final = false } = {}) {
       const start = state.roundStartMarkers || {};
       const blocks = state.camps.map(camp => {
@@ -2109,6 +2435,10 @@
     .mc-flag { font-size: 11px; background: rgba(0,0,0,0.07); border-radius: 8px; padding: 0 5px; cursor: help; }
     .mc-flag-bad { background: #b30000; color: #fff; }
     .mc-flag-round { background: rgba(184,134,11,0.25); }
+    .mc-flag-loss { background: rgba(179,0,0,0.12); color: #9a0000; font-weight: bold; }
+    .mc-ended { border: 2px solid var(--camp); border-radius: 8px; padding: 8px 10px; margin: 8px 0; text-align: center;
+      background: rgba(0,0,0,0.04); font-size: 14px; }
+    .mc-ended-title { font-weight: bold; font-size: 16px; margin-bottom: 2px; }
     .mc-chip-cmd { font-size: 12px; margin-top: 3px; display: flex; flex-wrap: wrap; gap: 3px; align-items: center; overflow: hidden; }
     .mc-app select.mc-mini { font-size: 11px !important; min-height: 22px; padding: 1px 3px !important; max-width: 100%; }
 
