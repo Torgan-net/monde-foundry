@@ -1,0 +1,159 @@
+/* ETU-relations — v0.2.2 */
+
+/* Le conteneur d'onglets de la fiche SWADE est en flex/grille : on force le panneau à occuper toute la largeur. */
+.tab.etu-relations,
+.tab.etu-relations.active {
+  flex: 1 1 100% !important;
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0;
+  grid-column: 1 / -1 !important;
+  align-self: stretch;
+  box-sizing: border-box;
+}
+
+.etu-relations {
+  --er-red-dark: #8e1b14;
+  --er-red: #c0392b;
+  --er-green: #4c9a4f;
+  --er-green-dark: #2e7d32;
+  --er-green-deep: #1b5e20;
+  --er-grey: #6b6b6b;
+  padding: 6px 8px;
+  overflow-y: auto;
+}
+
+/* Zone d'ajout */
+.etu-relations .er-add {
+  border: 2px dashed #9a9a9a;
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 10px;
+  text-align: center;
+  transition: background .15s, border-color .15s;
+}
+.etu-relations.er-dragover .er-add {
+  border-color: var(--er-green-dark);
+  background: rgba(46, 125, 50, .1);
+}
+.etu-relations .er-drop { color: var(--er-grey); font-style: italic; }
+.etu-relations .er-add-row { display: flex; gap: 6px; margin-top: 6px; }
+.etu-relations .er-add-row input { flex: 1; min-width: 0; }
+.etu-relations .er-add-row button { flex: 0 0 auto; width: auto; white-space: nowrap; }
+.etu-relations .er-empty { text-align: center; color: var(--er-grey); font-style: italic; }
+
+/* Carte */
+.etu-relations .er-card {
+  border: 1px solid rgba(0, 0, 0, .2);
+  border-radius: 6px;
+  padding: 6px 8px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, .35);
+}
+.etu-relations .er-head { display: flex; align-items: center; gap: 8px; }
+.etu-relations .er-portrait {
+  width: 36px; height: 36px; flex: 0 0 36px;
+  object-fit: cover; object-position: top;
+  border: 1px solid rgba(0, 0, 0, .3); border-radius: 4px;
+}
+.etu-relations .er-noimg {
+  display: flex; align-items: center; justify-content: center;
+  background: #ddd; color: #888;
+}
+/* Ligne unique : portrait | nom ♥ | barre | badge | corbeille */
+.etu-relations .er-who {
+  flex: 0 1 30%; min-width: 90px;
+  display: flex; align-items: center; gap: 6px; overflow: hidden;
+}
+.etu-relations .er-name {
+  min-width: 0; font-weight: bold;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.etu-relations a.er-name { cursor: pointer; text-decoration: underline dotted; }
+.etu-relations .er-heart { flex: 0 0 auto; color: #d32f2f; }
+.etu-relations .er-head .er-bar { flex: 1 1 auto; min-width: 80px; }
+.etu-relations .er-icon {
+  flex: 0 0 auto; width: 26px; height: 26px; line-height: 24px;
+  padding: 0; margin: 0; border: none; background: none; color: var(--er-grey); cursor: pointer;
+}
+.etu-relations .er-icon:hover { color: var(--er-red); }
+
+/* Badge du niveau */
+.etu-relations .er-badge {
+  font-size: .8em; padding: 1px 8px; border-radius: 10px; min-width: 76px; text-align: center;
+  color: #fff; background: var(--er-grey); white-space: nowrap;
+}
+.etu-relations .er-badge.er-l-2 { background: var(--er-red-dark); }
+.etu-relations .er-badge.er-l-1 { background: var(--er-red); }
+.etu-relations .er-badge.er-l1  { background: var(--er-green); }
+.etu-relations .er-badge.er-l2  { background: var(--er-green-dark); }
+.etu-relations .er-badge.er-l3  { background: var(--er-green-deep); }
+
+/* Barre : rouge à gauche de Neutre, verte à droite */
+.etu-relations .er-bar { display: flex; align-items: center; height: 10px; }
+.etu-relations .er-half {
+  height: 100%; display: flex; overflow: hidden;
+  background-color: rgba(0, 0, 0, .12);
+  background-image: repeating-linear-gradient(to right,
+    transparent 0, transparent calc(100% / var(--er-steps) - 1px),
+    rgba(0, 0, 0, .25) calc(100% / var(--er-steps) - 1px), rgba(0, 0, 0, .25) calc(100% / var(--er-steps)));
+}
+.etu-relations .er-neg { justify-content: flex-end; border-radius: 5px 0 0 5px; }
+.etu-relations .er-pos { justify-content: flex-start; border-radius: 0 5px 5px 0; }
+.etu-relations .er-fill { height: 100%; transition: width .25s; }
+.etu-relations .er-neg .er-fill { background: linear-gradient(to left, #e57373, #b71c1c); }
+.etu-relations .er-pos .er-fill { background: linear-gradient(to right, #81c784, #1b5e20); }
+.etu-relations .er-mid { flex: 0 0 4px; height: 16px; background: #444; border-radius: 2px; }
+
+/* Contrôles MJ */
+.etu-relations .er-gm-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 4px 0 2px;
+}
+.etu-relations .er-levels { display: flex; flex: 1 1 320px; }
+.etu-relations .er-level {
+  flex: 1; min-width: 0; margin: 0; padding: 1px 3px;
+  font-size: .76em; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  border: 1px solid #999; border-radius: 0; background: #eee; color: #333; cursor: pointer;
+}
+.etu-relations .er-level + .er-level { border-left: none; }
+.etu-relations .er-level:first-child { border-radius: 4px 0 0 4px; }
+.etu-relations .er-level:last-child { border-radius: 0 4px 4px 0; }
+.etu-relations .er-level:hover { background: #ddd; }
+.etu-relations .er-level.active { color: #fff; font-weight: bold; }
+.etu-relations .er-level.active.er-l-2 { background: var(--er-red-dark); }
+.etu-relations .er-level.active.er-l-1 { background: var(--er-red); }
+.etu-relations .er-level.active.er-l0  { background: var(--er-grey); }
+.etu-relations .er-level.active.er-l1  { background: var(--er-green); }
+.etu-relations .er-level.active.er-l2  { background: var(--er-green-dark); }
+.etu-relations .er-level.active.er-l3  { background: var(--er-green-deep); }
+.etu-relations .er-romance {
+  display: flex; align-items: center; gap: 5px; font-size: .82em; white-space: nowrap; cursor: pointer;
+}
+/* Vraie case à cocher native (la fiche SWADE masque ou restyle les cases par défaut) */
+.etu-relations input.er-checkbox[type="checkbox"] {
+  -webkit-appearance: checkbox !important;
+  appearance: auto !important;
+  display: inline-block !important;
+  position: static !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  width: 14px !important;
+  height: 14px !important;
+  margin: 0 !important;
+  flex: 0 0 auto;
+  accent-color: #d32f2f;
+}
+.etu-relations input.er-checkbox[type="checkbox"]::before,
+.etu-relations input.er-checkbox[type="checkbox"]::after { content: none !important; display: none !important; }
+
+/* Notes */
+.etu-relations .er-notes {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; margin-top: 6px;
+}
+.etu-relations .er-note label { display: block; font-size: .8em; color: #666666; font-style: italic; }
+.etu-relations .er-note textarea {
+  width: 100%; min-height: 2.8em; resize: vertical; font-family: inherit; font-size: .9em;
+}
+.etu-relations .er-note textarea[readonly] { background: transparent; border-style: dotted; }
+.etu-relations .er-gmnote label { color: var(--er-red-dark); }
+.etu-relations .er-gmnote textarea { border: 1px dashed var(--er-red-dark); background: rgba(142, 27, 20, .05); }
