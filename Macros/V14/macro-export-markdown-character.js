@@ -1,9 +1,11 @@
 /**
  * MACRO FOUNDRY VTT — Export fiche de personnage (PJ) SWADE en Markdown
  * ------------------------------------------------------------
- * Version : 1.1.3
+ * Version : 1.2.2
  * ------------------------------------------------------------
  * Compatible SWADE system v6+ (ApplicationV2 sheets).
+ * Compatible Foundry VTT v12+ (utilise DialogV2 ; l'ancienne API V1
+ * Dialog, dépréciée depuis la v13, n'est plus utilisée du tout).
  * Limité aux Personnages Joueurs (actor.type === "character") pour le moment.
  *
  * Usage :
@@ -33,6 +35,7 @@
  */
 
 (async () => {
+  try {
   // ------------------------------------------------------------
   // Utilitaires génériques
   // ------------------------------------------------------------
@@ -43,7 +46,7 @@
   // @Compendium[swade.edges.abc123]{Combat Reflexes}, et ne garde que
   // le texte affiché (ou rien s'il n'y a pas de libellé).
   function cleanCompendiumRefs(text) {
-    if (!text) return text;
+    if (!text || typeof text !== "string") return "";
     return text
       .replace(/@(?:UUID|Compendium)\[[^\]]+\]\{([^}]+)\}/g, "$1")
       .replace(/@(?:UUID|Compendium)\[[^\]]+\]/g, "");
@@ -53,10 +56,27 @@
   // <a> déjà enrichies) en texte brut. Les liens <a> sont convertis en
   // leur seul texte visible via textContent (le href est ignoré).
   function stripHtml(html) {
-    if (!html) return "";
+    // Certains champs (ex. biographie) peuvent être des objets selon la
+    // version : on cherche alors le texte dans leurs sous-champs usuels.
+    if (html && typeof html === "object") {
+      html = [html.value, html.text, html.content, html.public, html.html]
+        .find(v => typeof v === "string") ?? "";
+    }
+    if (!html || typeof html !== "string") return "";
     const div = document.createElement("div");
     div.innerHTML = cleanCompendiumRefs(html);
     return div.textContent.trim();
+  }
+
+  // DialogV2 est l'API recommandée depuis Foundry v12/v13 ; l'ancienne
+  // classe globale Dialog (V1) est dépréciée depuis la v13 et casse sur
+  // certaines installations v14+. On utilise donc systématiquement
+  // DialogV2 ici, avec un repli explicite si elle n'existe pas (très
+  // ancienne version de Foundry, non prise en charge par cette macro).
+  const DialogV2 = foundry?.applications?.api?.DialogV2;
+  if (!DialogV2) {
+    ui.notifications.error("Cette macro nécessite Foundry v12 ou supérieur (DialogV2 introuvable).");
+    return;
   }
 
   function firstDefined(...values) {
@@ -167,21 +187,21 @@
       return;
     }
     const options = owned.map(a => `<option value="${a.id}">${a.name}</option>`).join("");
-    actor = await new Promise((resolve) => {
-      new Dialog({
-        title: "Choisir un Personnage Joueur",
-        content: `<form><div class="form-group"><label>Personnage :</label><select id="actor-select">${options}</select></div></form>`,
-        buttons: {
-          ok: {
-            label: "Suivant",
-            callback: (html) => {
-              const id = html.find("#actor-select").val();
-              resolve(game.actors.get(id));
-            }
+    actor = await DialogV2.wait({
+      window: { title: "Choisir un Personnage Joueur" },
+      content: `<div class="form-group"><label>Personnage :</label><select name="actor-select">${options}</select></div>`,
+      buttons: [
+        {
+          action: "ok",
+          label: "Suivant",
+          default: true,
+          callback: (event, button, dialog) => {
+            const id = dialog.element.querySelector('[name="actor-select"]').value;
+            return game.actors.get(id);
           }
-        },
-        default: "ok"
-      }).render(true);
+        }
+      ],
+      rejectClose: false
     });
   }
 
@@ -195,42 +215,41 @@
   // ------------------------------------------------------------
   // 2. Options d'export
   // ------------------------------------------------------------
-  const exportOptions = await new Promise((resolve) => {
-    new Dialog({
-      title: "Options d'export",
-      content: `
-        <form>
-          <div class="form-group">
-            <label>
-              <input type="checkbox" id="opt-details">
-              Inclure le détail (description) des Atouts, Handicaps et Pouvoirs
-            </label>
-            <p class="notes">Par défaut, seuls les noms sont exportés.</p>
-          </div>
-          <div class="form-group">
-            <label for="opt-flavor">Format Markdown :</label>
-            <select id="opt-flavor" style="width:100%;">
-              <option value="standard">Standard (avec tableaux)</option>
-              <option value="discord">Compatible Discord (listes à puces, sans tableaux)</option>
-            </select>
-          </div>
-        </form>
-      `,
-      buttons: {
-        ok: {
-          label: "Exporter",
-          callback: (html) => resolve({
-            includeDetails: html.find("#opt-details").is(":checked"),
-            flavor: html.find("#opt-flavor").val()
-          })
-        },
-        cancel: {
-          label: "Annuler",
-          callback: () => resolve(null)
-        }
+  const exportOptions = await DialogV2.wait({
+    window: { title: "Options d'export" },
+    content: `
+      <div class="form-group">
+        <label>
+          <input type="checkbox" name="opt-details">
+          Inclure le détail (description) des Atouts, Handicaps et Pouvoirs
+        </label>
+        <p class="notes">Par défaut, seuls les noms sont exportés.</p>
+      </div>
+      <div class="form-group">
+        <label for="opt-flavor">Format Markdown :</label>
+        <select name="opt-flavor" style="width:100%;">
+          <option value="standard">Standard (avec tableaux)</option>
+          <option value="discord">Compatible Discord (listes à puces, sans tableaux)</option>
+        </select>
+      </div>
+    `,
+    buttons: [
+      {
+        action: "ok",
+        label: "Exporter",
+        default: true,
+        callback: (event, button, dialog) => ({
+          includeDetails: dialog.element.querySelector('[name="opt-details"]').checked,
+          flavor: dialog.element.querySelector('[name="opt-flavor"]').value
+        })
       },
-      default: "ok"
-    }).render(true);
+      {
+        action: "cancel",
+        label: "Annuler",
+        callback: () => null
+      }
+    ],
+    rejectClose: false
   });
 
   if (!exportOptions) return;
@@ -752,18 +771,30 @@
   }
 
   // ------------------------------------------------------------
-  // Copie dans le presse-papiers (avec repli en fenêtre manuelle)
+  // Copie dans le presse-papiers
   // ------------------------------------------------------------
+  // 1. Tentative automatique (utilitaire Foundry, puis API navigateur).
+  // 2. Dans tous les cas, une fenêtre affiche le texte avec un bouton
+  //    "Copier" : un clic direct est la méthode la plus fiable, car les
+  //    navigateurs n'autorisent l'écriture dans le presse-papiers que
+  //    pendant une interaction utilisateur récente.
   async function copyToClipboard(text) {
+    try {
+      if (game.clipboard?.copyPlainText) {
+        await game.clipboard.copyPlainText(text);
+        return true;
+      }
+    } catch (err) {
+      console.warn("Export SWADE | game.clipboard a échoué :", err);
+    }
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(text);
         return true;
       }
     } catch (err) {
-      console.warn("Copie via navigator.clipboard échouée, repli sur execCommand.", err);
+      console.warn("Export SWADE | navigator.clipboard a échoué :", err);
     }
-
     try {
       const ta = document.createElement("textarea");
       ta.value = text;
@@ -774,38 +805,56 @@
       ta.select();
       const ok = document.execCommand("copy");
       ta.remove();
-      if (ok) return true;
+      return ok;
     } catch (err) {
-      console.warn("Copie via execCommand échouée.", err);
+      console.warn("Export SWADE | execCommand a échoué :", err);
     }
-
     return false;
   }
 
-  const copied = await copyToClipboard(md);
+  const autoCopied = await copyToClipboard(md);
 
-  if (copied) {
-    const lenWarning = flavor === "discord" && md.length > 2000
-      ? ` (⚠️ ${md.length} caractères — dépasse la limite de 2000 d'un message Discord standard, il faudra le couper)`
-      : "";
-    ui.notifications.info(`Fiche de ${actor.name} copiée dans le presse-papiers.${lenWarning}`);
-  } else {
-    new Dialog({
-      title: `Fiche Markdown — ${actor.name}`,
-      content: `
-        <p>La copie automatique n'a pas fonctionné (restrictions du navigateur).
-        Le texte ci-dessous est déjà sélectionné : faites <kbd>Ctrl+C</kbd> (ou <kbd>Cmd+C</kbd>).</p>
-        <textarea id="md-output" rows="20" style="width:100%; font-family: monospace;" readonly></textarea>
-      `,
-      buttons: {
-        close: { label: "Fermer" }
+  const lenWarning = flavor === "discord" && md.length > 2000
+    ? `<p><strong>⚠️ ${md.length} caractères</strong> — dépasse la limite de 2000 d'un message Discord standard, il faudra le couper.</p>`
+    : "";
+
+  const resultDialog = new DialogV2({
+    window: { title: `Fiche Markdown — ${actor.name}` },
+    content: `
+      <p>${autoCopied
+        ? "Le texte a normalement été copié dans le presse-papiers. Si le collage ne donne rien, cliquez sur <strong>Copier</strong>."
+        : "La copie automatique a été bloquée par le navigateur : cliquez sur <strong>Copier</strong>, ou sélectionnez le texte et faites <kbd>Ctrl+C</kbd>."}</p>
+      ${lenWarning}
+      <textarea name="md-output" rows="20" style="width:100%; font-family: monospace;" readonly></textarea>
+    `,
+    buttons: [
+      {
+        action: "copy",
+        label: "Copier",
+        icon: "fa-solid fa-copy",
+        default: true,
+        callback: async (event, button, dialog) => {
+          const ok = await copyToClipboard(md);
+          if (ok) {
+            ui.notifications.info(`Fiche de ${actor.name} copiée dans le presse-papiers.`);
+          } else {
+            const ta = dialog.element.querySelector('[name="md-output"]');
+            ta?.focus();
+            ta?.select();
+            ui.notifications.warn("Copie bloquée : le texte est sélectionné, faites Ctrl+C.");
+          }
+        }
       },
-      render: (html) => {
-        const ta = html.find("#md-output")[0];
-        ta.value = md;
-        ta.focus();
-        ta.select();
-      }
-    }, { width: 600 }).render(true);
+      { action: "close", label: "Fermer" }
+    ],
+    position: { width: 640 }
+  });
+  await resultDialog.render(true);
+  const outputArea = resultDialog.element?.querySelector('[name="md-output"]');
+  if (outputArea) outputArea.value = md;
+
+  } catch (err) {
+    console.error("Export SWADE | Erreur :", err);
+    ui.notifications.error(`Export de la fiche impossible : ${err.message} (détails dans la console F12).`);
   }
 })();
