@@ -1,4 +1,4 @@
-# ETU-relations (v0.2.2)
+# ETU-relations (v0.3.0)
 
 Relations réciproques PJ ↔ PNJ pour SWADE (Foundry v14, SWADE 6.x).
 
@@ -17,6 +17,8 @@ Chaque fiche n'affiche que son propre côté du lien, sur une seule ligne : la p
 **Fiche de PJ** (joueur propriétaire + MJ) : attitude du PJ envers chaque PNJ. Le joueur ajoute un PNJ (glisser-déposer ou nom libre), écrit sa note, retire un lien. Le MJ règle le niveau, coche *Relation amoureuse* et écrit sa note privée.
 
 **Fiche de PNJ** (MJ uniquement) : attitude du PNJ envers chaque PJ qui l'a dans ses relations (liste automatique). Glisser un PJ sur l'onglet crée le lien.
+
+**Recherche et repli** : le champ de recherche filtre la liste par nom (sans tenir compte des accents ; Échap pour effacer). Les cartes sont repliées par défaut ; un clic sur la ligne ou le chevron les déplie. L'état déplié est mémorisé par utilisateur.
 
 ## Données
 - `flags.etu-relations.contacts.<id>` (PJ) : nom, uuid, image, niveau, amour, note joueur ;

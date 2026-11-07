@@ -2,7 +2,7 @@
   "id": "etu-relations",
   "title": "ETU-relations",
   "description": "Relations réciproques PJ/PNJ pour SWADE : onglet « Relations » sur les fiches de PJ et de PNJ, niveau de Réaction de chaque côté fixé par le MJ, relation amoureuse, notes joueur et notes MJ privées.",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "authors": [{ "name": "Arnok" }],
   "compatibility": { "minimum": "13", "verified": "14" },
   "relationships": {

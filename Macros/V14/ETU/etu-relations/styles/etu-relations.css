@@ -1,4 +1,4 @@
-/* ETU-relations — v0.2.2 */
+/* ETU-relations — v0.3.0 */
 
 /* Le conteneur d'onglets de la fiche SWADE est en flex/grille : on force le panneau à occuper toute la largeur. */
 .tab.etu-relations,
@@ -157,3 +157,29 @@
 .etu-relations .er-note textarea[readonly] { background: transparent; border-style: dotted; }
 .etu-relations .er-gmnote label { color: var(--er-red-dark); }
 .etu-relations .er-gmnote textarea { border: 1px dashed var(--er-red-dark); background: rgba(142, 27, 20, .05); }
+
+/* ---------- v0.3.0 : recherche et repli ---------- */
+.etu-relations [hidden] { display: none !important; }
+
+/* Barre d'outils : recherche | compteur | tout déplier | tout replier */
+.etu-relations .er-toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.etu-relations .er-search { position: relative; flex: 1 1 auto; min-width: 0; }
+.etu-relations .er-search i {
+  position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+  color: var(--er-grey); font-size: .85em; pointer-events: none;
+}
+.etu-relations .er-search input.er-filter { width: 100%; padding-left: 26px; }
+.etu-relations .er-count {
+  flex: 0 0 auto; font-size: .8em; color: var(--er-grey);
+  min-width: 34px; text-align: center; white-space: nowrap;
+}
+
+/* Repli : seule la ligne de synthèse est visible */
+.etu-relations .er-head { cursor: pointer; }
+.etu-relations .er-head .er-toggle { width: 18px; }
+.etu-relations .er-head .er-toggle i { transition: transform .15s; font-size: .8em; }
+.etu-relations .er-card.er-open .er-toggle i { transform: rotate(90deg); }
+.etu-relations .er-details { display: none; }
+.etu-relations .er-card.er-open .er-details { display: block; }
+.etu-relations .er-card:not(.er-open) { padding-top: 4px; padding-bottom: 4px; margin-bottom: 5px; }
+.etu-relations .er-has-note { flex: 0 0 auto; color: var(--er-grey); font-size: .85em; }

@@ -1,5 +1,5 @@
 /**
- * ETU-relations — v0.2.2
+ * ETU-relations — v0.3.0
  *
  * Relations réciproques PJ ↔ PNJ pour SWADE.
  * Onglet « Relations » :
@@ -198,28 +198,40 @@ function buildCard(link, ctx) {
       </div>
       <label class="er-romance"><input type="checkbox" class="er-checkbox" data-er-field="romance" data-side="${side}"${rel.romance ? " checked" : ""}> Relation amoureuse</label>
     </div>` : "";
+  const gmNoteText = ctx.isGM ? getGmNote(pj, c.id) : "";
   const gmNote = ctx.isGM ? `
       <div class="er-note er-gmnote">
         <label><i class="fa-solid fa-eye-slash"></i> Note du MJ (invisible pour le joueur)</label>
-        <textarea data-er-field="gmNote" rows="2">${esc(getGmNote(pj, c.id))}</textarea>
+        <textarea data-er-field="gmNote" rows="2">${esc(gmNoteText)}</textarea>
       </div>` : "";
 
+  // Indicateur de notes dans la vue repliée
+  const notePreview = [c.playerNote, gmNoteText].map(s => (s ?? "").trim()).filter(Boolean).join(" — ");
+  const noteIcon = notePreview
+    ? `<i class="fa-solid fa-comment-dots er-has-note" data-tooltip="${esc(notePreview.slice(0, 200))}"></i>` : "";
+
+  const key = cardKey(pj.id, c.id);
+  const open = isExpanded(key);
+
   return `
-  <div class="er-card" data-pj-id="${esc(pj.id)}" data-contact-id="${esc(c.id)}" data-npc-uuid="${esc(npc?.uuid ?? "")}" data-head-uuid="${esc(head.uuid ?? "")}">
+  <div class="er-card${open ? " er-open" : ""}" data-key="${esc(key)}" data-name="${esc(normalize(head.name))}" data-pj-id="${esc(pj.id)}" data-contact-id="${esc(c.id)}" data-npc-uuid="${esc(npc?.uuid ?? "")}" data-head-uuid="${esc(head.uuid ?? "")}">
     <div class="er-head">
+      <button type="button" class="er-icon er-toggle" data-er-action="toggle" data-tooltip="Déplier / replier"><i class="fa-solid fa-chevron-right"></i></button>
       ${portrait}
-      <span class="er-who">${nameHtml}${heart}</span>
+      <span class="er-who">${nameHtml}${heart}${noteIcon}</span>
       ${buildBar(lvl)}
       <span class="er-badge er-l${lvl}">${esc(levelLabel(lvl))}</span>
       ${del}
     </div>
-    ${controls}
-    <div class="er-notes">
-      <div class="er-note">
-        <label>Note du joueur</label>
-        <textarea data-er-field="playerNote" rows="2"${canEditPj ? "" : " readonly"}>${esc(c.playerNote ?? "")}</textarea>
+    <div class="er-details">
+      ${controls}
+      <div class="er-notes">
+        <div class="er-note">
+          <label>Note du joueur</label>
+          <textarea data-er-field="playerNote" rows="2"${canEditPj ? "" : " readonly"}>${esc(c.playerNote ?? "")}</textarea>
+        </div>
+        ${gmNote}
       </div>
-      ${gmNote}
     </div>
   </div>`;
 }
@@ -245,10 +257,72 @@ function buildPanel(actor, ctx) {
   const empty = ctx.mode === "pj"
     ? "Aucune relation enregistrée."
     : "Aucun PJ n'a encore de relation avec ce PNJ.";
+  const toolbar = links.length ? `
+    <div class="er-toolbar">
+      <div class="er-search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="search" class="er-filter" placeholder="Rechercher un nom…">
+      </div>
+      <span class="er-count" data-tooltip="Relations affichées">${links.length}</span>
+      <button type="button" class="er-icon" data-er-action="expand-all" data-tooltip="Tout déplier"><i class="fa-solid fa-angles-down"></i></button>
+      <button type="button" class="er-icon" data-er-action="collapse-all" data-tooltip="Tout replier"><i class="fa-solid fa-angles-up"></i></button>
+    </div>` : "";
   const list = links.length
-    ? links.map(l => buildCard(l, ctx)).join("")
+    ? links.map(l => buildCard(l, ctx)).join("") + `<p class="er-empty er-nomatch" hidden>Aucun nom ne correspond à la recherche.</p>`
     : `<p class="er-empty">${empty}</p>`;
-  return `<div class="er-wrap">${add}<div class="er-list">${list}</div></div>`;
+  return `<div class="er-wrap">${add}${toolbar}<div class="er-list">${list}</div></div>`;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Recherche et repli                                                 */
+/* ------------------------------------------------------------------ */
+
+/** Texte de recherche conservé par fenêtre de fiche (survit aux re-rendus). */
+const filterByApp = new Map();
+
+function normalize(s) {
+  return String(s ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+}
+
+function applyFilter(panel, query) {
+  const q = normalize(query);
+  let shown = 0, total = 0;
+  for (const card of panel.querySelectorAll(".er-card")) {
+    total++;
+    const ok = !q || card.dataset.name.includes(q);
+    card.hidden = !ok;
+    if (ok) shown++;
+  }
+  const count = panel.querySelector(".er-count");
+  if (count) count.textContent = q ? `${shown} / ${total}` : `${total}`;
+  const none = panel.querySelector(".er-nomatch");
+  if (none) none.hidden = !(total > 0 && shown === 0);
+}
+
+/** État déplié des cartes : propre à chaque utilisateur, mémorisé sur son navigateur. Replié par défaut. */
+function cardKey(pjId, cid) { return `${pjId}-${cid}`; }
+
+function getExpandedMap() {
+  try { return game.settings.get(MOD, "expanded") ?? {}; } catch { return {}; }
+}
+
+function isExpanded(key) { return !!getExpandedMap()[key]; }
+
+function saveExpanded(changes) {
+  const map = { ...getExpandedMap() };
+  for (const [k, v] of Object.entries(changes)) {
+    if (v) map[k] = true; else delete map[k];
+  }
+  return game.settings.set(MOD, "expanded", map);
+}
+
+function setCardsOpen(cards, open) {
+  const changes = {};
+  for (const card of cards) {
+    card.classList.toggle("er-open", open);
+    changes[card.dataset.key] = open;
+  }
+  return saveExpanded(changes);
 }
 
 /* ------------------------------------------------------------------ */
@@ -298,14 +372,36 @@ async function onDrop(ev, actor, panel, ctx) {
 
 async function onClick(ev, actor, panel, ctx) {
   const btn = ev.target.closest("[data-er-action]");
-  if (!btn || !panel.contains(btn)) return;
+
+  // Clic sur une zone neutre de la ligne : déplie / replie la carte
+  if (!btn) {
+    const head = ev.target.closest(".er-head");
+    if (head && panel.contains(head) && !ev.target.closest("a, button, input, textarea, label")) {
+      const card = head.closest(".er-card");
+      await setCardsOpen([card], !card.classList.contains("er-open"));
+    }
+    return;
+  }
+  if (!panel.contains(btn)) return;
   ev.preventDefault();
   ev.stopPropagation();
 
   const action = btn.dataset.erAction;
-  if (action === "add") {
-    if (ctx.mode === "pj" && ctx.canEdit) await addFromInput(actor, panel);
-    return;
+  switch (action) {
+    case "add":
+      if (ctx.mode === "pj" && ctx.canEdit) await addFromInput(actor, panel);
+      return;
+    case "toggle": {
+      const card = btn.closest(".er-card");
+      await setCardsOpen([card], !card.classList.contains("er-open"));
+      return;
+    }
+    case "expand-all":
+    case "collapse-all": {
+      const cards = [...panel.querySelectorAll(".er-card")].filter(c => !c.hidden);
+      await setCardsOpen(cards, action === "expand-all");
+      return;
+    }
   }
 
   const link = linkFromEl(btn);
@@ -367,8 +463,31 @@ async function onChange(ev, actor, panel, ctx) {
   }
 }
 
-function bindPanel(actor, panel, ctx) {
+function bindPanel(actor, panel, ctx, appKey) {
   const canDrop = ctx.mode === "pj" ? ctx.canEdit : ctx.isGM;
+
+  // Recherche : filtrage instantané, sans re-rendu ni écriture
+  const filter = panel.querySelector(".er-filter");
+  if (filter) {
+    const saved = filterByApp.get(appKey) ?? "";
+    filter.value = saved;
+    if (saved) applyFilter(panel, saved);
+    filter.addEventListener("input", ev => {
+      ev.stopPropagation();
+      filterByApp.set(appKey, filter.value);
+      applyFilter(panel, filter.value);
+    });
+    filter.addEventListener("keydown", ev => {
+      if (ev.key === "Enter") { ev.preventDefault(); ev.stopPropagation(); }
+      if (ev.key === "Escape" && filter.value) {
+        ev.preventDefault(); ev.stopPropagation();
+        filter.value = "";
+        filterByApp.set(appKey, "");
+        applyFilter(panel, "");
+      }
+    });
+  }
+
   if (canDrop) {
     panel.addEventListener("dragover", ev => { ev.preventDefault(); panel.classList.add("er-dragover"); });
     panel.addEventListener("dragleave", ev => {
@@ -509,7 +628,7 @@ function inject(app, html) {
     ev.stopPropagation();
     activate(app, tabCtx);
   });
-  bindPanel(actor, panel, ctx);
+  bindPanel(actor, panel, ctx, app.id ?? app.appId ?? actor.uuid);
 
   if (isActive(app, s.group)) activate(app, tabCtx);
 }
@@ -541,6 +660,16 @@ Hooks.on("updateActor", (actor, changes) => {
 /* ------------------------------------------------------------------ */
 /*  Initialisation                                                     */
 /* ------------------------------------------------------------------ */
+
+Hooks.once("init", () => {
+  // État déplié/replié des cartes, propre à chaque utilisateur (non affiché dans les paramètres)
+  game.settings.register(MOD, "expanded", {
+    scope: "client",
+    config: false,
+    type: Object,
+    default: {}
+  });
+});
 
 Hooks.on("renderApplicationV2", inject); // fiches AppV2
 Hooks.on("renderActorSheet", inject);    // fiches AppV1 (au cas où)
