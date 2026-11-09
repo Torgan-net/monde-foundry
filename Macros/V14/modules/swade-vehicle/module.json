@@ -1,0 +1,15 @@
+{
+  "id": "swade-vehicle",
+  "title": "SWADE Vehicle – Fiche véhicule",
+  "description": "Fiche alternative pour les acteurs véhicule du système SWADE : postes, occupants, jets de manœuvre et de tir, mods à action, cargaison. Version de test.",
+  "version": "0.4.0",
+  "authors": [{ "name": "Arnok" }],
+  "compatibility": { "minimum": "13", "verified": "14" },
+  "relationships": {
+    "systems": [
+      { "id": "swade", "type": "system", "compatibility": { "minimum": "5.0" } }
+    ]
+  },
+  "esmodules": ["scripts/main.js"],
+  "styles": ["styles/vehicle-sheet.css"]
+}
