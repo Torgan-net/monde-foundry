@@ -1,7 +1,7 @@
 <div class="swv-sheet">
 
   <header class="swv-head">
-    <img class="swv-portrait" src="{{img}}" alt="">
+    <img class="swv-portrait" src="{{img}}" alt="Image du véhicule" title="Clic : changer l'image · clic droit : l'agrandir">
     <div class="swv-title">
       <div class="swv-name-row">
         <h1>{{displayName}}</h1>
@@ -26,6 +26,19 @@
     {{#each stats}}
     <div class="swv-stat {{#if warn}}is-warn{{/if}}"><span class="swv-lbl">{{label}}</span><span class="swv-val">{{value}}</span></div>
     {{/each}}
+    {{#if shield}}
+    <div class="swv-stat {{#unless shield.value}}is-warn{{/unless}}">
+      <span class="swv-lbl">Bouclier</span>
+      <span class="swv-val">{{shield.value}} / {{shield.max}}</span>
+      <span class="swv-wound-btns">
+        {{#if canSpendEnergy}}
+        <button type="button" class="swv-ui swv-energy-btn" data-action="shieldSoak" {{#unless shield.value}}disabled{{/unless}} title="Encaisser des Blessures déjà subies">Encaisser</button>
+        <button type="button" class="swv-ui swv-energy-btn" data-action="shieldEmergency" title="Recharge d'urgence (jet d'Électronique)">Urgence</button>
+        {{/if}}
+        {{#if isGM}}<button type="button" class="swv-energy-btn" data-action="shieldFull" aria-label="Recharge complète du bouclier" title="Recharge complète (10 minutes hors combat)">+</button>{{/if}}
+      </span>
+    </div>
+    {{/if}}
     {{#if features.energy}}
     <div class="swv-stat {{#if energy.low}}is-warn{{/if}}">
       <span class="swv-lbl">Énergie</span>
@@ -38,7 +51,7 @@
     {{/if}}
     <div class="swv-stat is-wounds">
       <span class="swv-lbl">Blessures</span>
-      <span class="swv-val">{{wounds.value}} / {{wounds.max}}</span>
+      <span class="swv-val {{#if wounds.over}}is-alert{{/if}}">{{wounds.value}} / {{wounds.max}}{{#if wounds.over}} · épave{{/if}}</span>
       {{#if isGM}}
       <span class="swv-wound-btns">
         <button type="button" data-action="wound" data-delta="-1" aria-label="Retirer une Blessure">−</button>
@@ -57,6 +70,18 @@
     {{#if crewAlert}}<span class="swv-chip is-alert">{{crewAlert}}</span>{{/if}}
   </section>
 
+  {{#if features.energy}}{{#if power.available}}
+  <section class="swv-status">
+    <span class="swv-lbl">Énergie</span>
+    {{#if power.active}}<span class="swv-chip is-active">{{power.label}}</span><span class="swv-hint">{{power.effects}}</span>{{else}}<span class="swv-hint">répartition normale</span>{{/if}}
+    <span class="swv-spacer"></span>
+    {{#if canSpendEnergy}}
+    <button type="button" class="swv-chip swv-ui" data-action="divertPower">Répartir</button>
+    {{#if power.active}}<button type="button" class="swv-chip swv-ui" data-action="restorePower">Rétablir</button>{{/if}}
+    {{/if}}
+  </section>
+  {{/if}}{{/if}}
+
   {{#if critSummary}}
   <section class="swv-status"><span class="swv-lbl">Dégradations</span><span class="swv-chip is-alert">{{critSummary}}</span></section>
   {{/if}}
@@ -74,6 +99,7 @@
     {{#if features.cargo}}
     <button type="button" data-tab-button data-action="switchTab" data-swv-tab="cargaison" class="{{#if tabs.cargaison}}is-active{{/if}}">Cargaison</button>
     {{/if}}
+    <button type="button" data-tab-button data-action="switchTab" data-swv-tab="equipement" class="{{#if tabs.equipement}}is-active{{/if}}">Équipement</button>
     <button type="button" data-tab-button data-action="switchTab" data-swv-tab="journal" class="{{#if tabs.journal}}is-active{{/if}}">Journal</button>
     {{#if showConception}}
     <button type="button" data-tab-button data-action="switchTab" data-swv-tab="conception" class="{{#if tabs.conception}}is-active{{/if}}">Conception</button>
@@ -130,15 +156,15 @@
         </div>
         {{/if}}
 
-        {{#if support.enabled}}
-        <div class="swv-row swv-item-row">
-          <span class="swv-item-name">Soutien : {{#if support.label}}{{support.label}}{{else}}groupe{{/if}}</span>
-          <span class="swv-hint">{{supportText}}</span>
-          {{#if supportPending}}<span class="swv-chip is-active">soutien {{supportPending}} au prochain jet</span>{{/if}}
+        {{#each supports}}
+        <div class="swv-row swv-item-row swv-support-row" data-poste-id="{{../id}}" data-support-id="{{id}}">
+          {{#if actorImg}}<img class="swv-support-token" src="{{actorImg}}" alt="">{{/if}}
+          <span class="swv-item-name" title="{{text}}">Soutien : {{label}}</span>
           <span class="swv-spacer"></span>
-          <button type="button" class="swv-roll" data-action="groupRoll" data-can-act="{{canGroup}}" {{#unless canGroup}}disabled{{/unless}}>Jet de groupe</button>
+          <button type="button" class="swv-roll" data-action="groupRoll" data-support-id="{{id}}" data-can-act="{{../canGroup}}" {{#unless ../canGroup}}disabled{{/unless}}>{{#if actorName}}Jet de soutien{{else}}Jet de groupe{{/if}}</button>
         </div>
-        {{/if}}
+        {{/each}}
+        {{#if supportPending}}<div class="swv-row"><span class="swv-chip is-active">soutien {{supportPending}} au prochain jet</span></div>{{/if}}
 
         {{#if isAutre}}
         <div class="swv-row">
@@ -182,6 +208,56 @@
 
     {{#if passengers}}
     <div class="swv-band"><span class="swv-lbl">Passagers</span> <strong>{{passengers}}</strong></div>
+    {{/if}}
+    {{/if}}
+
+    {{#if tabs.equipement}}
+    <div class="swv-section-head"><h2 class="swv-sec">Armement</h2></div>
+    {{#each equipment.weapons}}
+    <details class="swv-equip {{#if destroyed}}is-destroyed{{/if}}">
+      <summary>
+        <img src="{{img}}" alt="">
+        <strong>{{name}}</strong>
+        {{#if classe}}<span class="swv-classe is-small">Classe {{classe}}</span>{{/if}}
+        {{#if destroyed}}<span class="swv-chip is-alert">détruite</span>{{/if}}
+        <span class="swv-spacer"></span>
+        <span class="swv-hint">{{damage}} · PA {{ap}} · {{range}} · CdT {{rof}}{{#if ammo}} · munitions {{ammo}}{{/if}}</span>
+      </summary>
+      <div class="swv-equip-body">
+        {{#if tags.length}}<p>{{#each tags}}<span class="swv-chip">{{this}}</span> {{/each}}</p>{{/if}}
+        <p><span class="swv-lbl">Poste</span> {{#if postes}}{{postes}}{{else}}aucun{{/if}}</p>
+        {{#if notes}}<p><span class="swv-lbl">Notes</span> {{notes}}</p>{{/if}}
+        {{#if description}}<div class="swv-equip-desc">{{{description}}}</div>{{/if}}
+        <p>
+          <button type="button" class="swv-ui" data-action="openItem" data-item-id="{{id}}">Ouvrir la fiche</button>
+          {{#if canReload}}<button type="button" data-action="reloadWeapon" data-item-id="{{id}}">Recharger</button>{{/if}}
+        </p>
+      </div>
+    </details>
+    {{else}}
+    <p class="swv-empty">Aucune arme véhiculaire.</p>
+    {{/each}}
+
+    {{#if features.mods}}
+    <div class="swv-section-head"><h2 class="swv-sec">Modifications</h2></div>
+    {{#each equipment.mods}}
+    <details class="swv-equip">
+      <summary>
+        <img src="{{img}}" alt="">
+        <strong>{{name}}</strong>
+        {{#if charges}}<span class="swv-chip">charges {{charges}}</span>{{/if}}
+        <span class="swv-spacer"></span>
+        <span class="swv-hint">{{slots}} emplacement(s){{#if actions}} · {{actions}}{{/if}}</span>
+      </summary>
+      <div class="swv-equip-body">
+        <p><span class="swv-lbl">Poste</span> {{#if postes}}{{postes}}{{else}}aucun{{/if}}</p>
+        {{#if description}}<div class="swv-equip-desc">{{{description}}}</div>{{/if}}
+        <p><button type="button" class="swv-ui" data-action="openItem" data-item-id="{{id}}">Ouvrir la fiche</button></p>
+      </div>
+    </details>
+    {{else}}
+    <p class="swv-empty">Aucune modification.</p>
+    {{/each}}
     {{/if}}
     {{/if}}
 
@@ -242,15 +318,16 @@
         {{/if}}
         <label class="swv-hint"><input type="checkbox" data-scale-force {{#if tech.scaleForced}}checked{{/if}}> forcer</label>
       </div>
-      <label class="swv-field">Maniabilité <input type="number" step="1" data-tech="handling" value="{{tech.handling}}"></label>
-      <label class="swv-field">Vitesse max <input type="number" min="0" step="1" data-tech="topspeed.value" value="{{tech.speed}}"></label>
+      <label class="swv-field">Maniabilité <input type="number" step="1" data-tech="handling" value="{{tech.handling}}">{{#if techFx.handling}}<span class="swv-fx">effets : {{techFx.handling.sources}} → <strong>{{techFx.handling.used}}</strong></span>{{/if}}</label>
+      <label class="swv-field">Vitesse max <input type="number" min="0" step="1" data-tech="topspeed.value" value="{{tech.speed}}">{{#if techFx.speed}}<span class="swv-fx">effets : {{techFx.speed.sources}} → <strong>{{techFx.speed.used}}</strong></span>{{/if}}</label>
       <label class="swv-field">Unité <input type="text" data-tech="topspeed.unit" value="{{tech.speedUnit}}" placeholder="km/h, nœuds…"></label>
-      <label class="swv-field">Résistance (Armure comprise) <input type="number" min="0" step="1" data-tech="toughness.total" value="{{tech.toughness}}"></label>
-      <label class="swv-field">dont Armure <input type="number" min="0" step="1" data-tech="toughness.armor" value="{{tech.armor}}"></label>
+      <label class="swv-field">Résistance de base (Armure comprise) <input type="number" min="0" step="1" data-tech="toughness.total" value="{{tech.toughness}}">{{#if techFx.toughness}}<span class="swv-fx">effets : {{techFx.toughness.sources}} → <strong>{{techFx.toughness.used}}</strong></span>{{/if}}</label>
+      <label class="swv-field">dont Armure de base <input type="number" min="0" step="1" data-tech="toughness.armor" value="{{tech.armor}}">{{#if techFx.armor}}<span class="swv-fx">effets : {{techFx.armor.sources}} → <strong>{{techFx.armor.used}}</strong></span>{{/if}}</label>
       <div class="swv-field">
         <label for="swv-wmax">Blessures max {{#unless tech.woundsForced}}<span class="swv-hint">(d'après la Taille)</span>{{/unless}}</label>
         {{#if tech.woundsForced}}
         <input id="swv-wmax" type="number" min="0" step="1" data-tech="wounds.max" value="{{tech.woundsMax}}">
+        {{#if techFx.woundsMax}}<span class="swv-fx">effets : {{techFx.woundsMax.sources}} → <strong>{{techFx.woundsMax.used}}</strong></span>{{/if}}
         {{else}}
         <input id="swv-wmax" type="number" value="{{tech.woundsAuto}}" readonly>
         {{#if tech.woundsMismatch}}<span class="swv-hint is-alert">enregistrées : {{tech.woundsMax}} (corrigées au prochain changement de Taille)</span>{{/if}}
@@ -312,16 +389,40 @@
         <label class="swv-field">Compétence (postes « Autre ») <input type="text" data-poste-id="{{id}}" data-poste-field="skill" value="{{skill}}" placeholder="ex. Electronics"></label>
         <button type="button" class="swv-danger" data-action="deletePoste" data-poste-id="{{id}}">Supprimer</button>
       </div>
-      <div class="swv-grid swv-support-edit">
-        <label class="swv-check"><input type="checkbox" data-poste-id="{{id}}" data-poste-field="support.enabled" {{#if support.enabled}}checked{{/if}}> Groupe de soutien</label>
-        {{#if support.enabled}}
-        <label class="swv-field">Nom du groupe <input type="text" data-poste-id="{{id}}" data-poste-field="support.label" value="{{support.label}}" placeholder="ex. Servants"></label>
-        <label class="swv-field">Effectif <input type="number" min="0" step="1" data-poste-id="{{id}}" data-poste-field="support.count" value="{{support.count}}"></label>
-        <label class="swv-field">Dé
-          <select data-poste-id="{{id}}" data-poste-field="support.die">{{#each dieOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>d{{value}}</option>{{/each}}</select>
-        </label>
-        <label class="swv-field">Modificateur <input type="number" step="1" data-poste-id="{{id}}" data-poste-field="support.mod" value="{{support.mod}}"></label>
-        {{/if}}
+      <div class="swv-support-edit">
+        <div class="swv-section-head">
+          <span class="swv-lbl">Soutiens</span>
+          <span class="swv-spacer"></span>
+          <button type="button" data-action="addSupport" data-poste-id="{{id}}">+ Ajouter un soutien</button>
+        </div>
+        {{#each supports}}
+        <div class="swv-grid swv-support-item" data-poste-id="{{../id}}" data-support-id="{{id}}">
+          <div class="swv-support-actor">
+            {{#if actor}}
+            <img src="{{actorImg}}" alt=""><span>{{actorName}}</span>
+            <button type="button" class="swv-link" data-action="clearSupportActor" data-poste-id="{{../id}}" data-support-id="{{id}}">retirer</button>
+            {{else}}
+            <span class="swv-support-drop">déposer un acteur (facultatif)</span>
+            {{/if}}
+          </div>
+          <label class="swv-field">Nom <input type="text" data-poste-id="{{../id}}" data-support-id="{{id}}" data-support-field="label" value="{{label}}" placeholder="ex. Servants"></label>
+          <label class="swv-field">Effectif <input type="number" min="0" step="1" data-poste-id="{{../id}}" data-support-id="{{id}}" data-support-field="count" value="{{count}}"></label>
+          <label class="swv-field">Dé (sans acteur)
+            <select data-poste-id="{{../id}}" data-support-id="{{id}}" data-support-field="die">{{#each dieOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>d{{value}}</option>{{/each}}</select>
+          </label>
+          <label class="swv-field">Modificateur <input type="number" step="1" data-poste-id="{{../id}}" data-support-id="{{id}}" data-support-field="mod" value="{{mod}}"></label>
+          {{#if skillOptions}}
+          <label class="swv-field">Compétence par défaut
+            <select data-poste-id="{{../id}}" data-support-id="{{id}}" data-support-field="skill">{{#each skillOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+          </label>
+          {{else}}
+          <label class="swv-field">Compétence <input type="text" data-poste-id="{{../id}}" data-support-id="{{id}}" data-support-field="skill" value="{{skill}}" placeholder="par défaut : {{skillPlaceholder}}"></label>
+          {{/if}}
+          <button type="button" class="swv-danger" data-action="deleteSupport" data-poste-id="{{../id}}" data-support-id="{{id}}">Supprimer</button>
+        </div>
+        {{else}}
+        <p class="swv-empty">Aucun soutien.</p>
+        {{/each}}
       </div>
       <div class="swv-checks">
         <span class="swv-lbl">Armes</span>
@@ -338,11 +439,13 @@
 
     <div class="swv-section-head"><h2 class="swv-sec">Armement</h2></div>
     <table class="swv-table">
-      <thead><tr><th>Arme</th><th>Valeur</th><th>Classe calculée</th><th>Classe forcée</th><th>Ogive</th></tr></thead>
+      <thead><tr><th>Arme</th><th>Valeur</th><th>Classe calculée</th><th>Classe forcée</th><th>Fixe</th><th>Énergie</th><th>Ogive</th></tr></thead>
       <tbody>
         {{#each weapons}}
         <tr><td><a data-action="openItem" data-item-id="{{id}}">{{name}}</a></td><td>{{value}}</td><td>{{computed}}</td>
           <td><input type="text" data-classe-item="{{id}}" value="{{override}}" placeholder="—" size="4"></td>
+          <td><input type="checkbox" data-fixed-item="{{id}}" {{#if fixed}}checked{{/if}} aria-label="Arme fixe : {{name}}"></td>
+          <td><input type="checkbox" data-energy-item="{{id}}" {{#if energy}}checked{{/if}} aria-label="Arme à énergie : {{name}}"></td>
           <td><select data-warhead-item="{{id}}">{{#each warheadOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></td></tr>
         {{/each}}
       </tbody>

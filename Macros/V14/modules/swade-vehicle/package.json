@@ -1,0 +1,10 @@
+{
+  "name": "swade-vehicle",
+  "private": true,
+  "type": "module",
+  "description": "Outils de développement du module Foundry VTT swade-vehicle (tests uniquement, pas de build).",
+  "scripts": {
+    "test": "node --test \"tests/unit/**/*.test.js\"",
+    "check": "node tests/tools/check.mjs"
+  }
+}
