@@ -1,9 +1,9 @@
-/* SWADE Vehicle – Fiche véhicule · v0.6.5 */
+/* SWADE Vehicle – Fiche véhicule · v0.7.2 */
 .swade-vehicle-sheet .window-content { padding: 0; background: #f4f1ea; color: #1f1d1a; }
 .swade-vehicle-sheet .swv-sheet { display: flex; flex-direction: column; height: 100%; font-family: Signika, sans-serif; }
 
 .swade-vehicle-sheet .swv-head { display: flex; gap: 14px; align-items: center; padding: 14px 20px; background: #1f1d1a; color: #f4f1ea; }
-.swade-vehicle-sheet .swv-portrait { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; border: 0; }
+.swade-vehicle-sheet .swv-portrait { width: 72px; height: 72px; object-fit: contain; border-radius: 8px; border: 0; }
 .swade-vehicle-sheet .swv-title { flex: 1; min-width: 0; }
 .swade-vehicle-sheet .swv-name-row { display: flex; gap: 10px; align-items: center; }
 .swade-vehicle-sheet .swv-name-row h1 { margin: 0; border: 0; font-family: "Roboto Slab", serif; font-size: 24px; color: #f4f1ea; }
@@ -43,7 +43,7 @@
 .swade-vehicle-sheet .swv-poste.is-mine { border: 2px solid #7c2d12; }
 .swade-vehicle-sheet .swv-seat { width: 80px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; border-radius: 8px; padding: 2px; }
 .swade-vehicle-sheet .swv-poste.is-over { outline: 2px dashed #7c2d12; outline-offset: 2px; }
-.swade-vehicle-sheet .swv-token { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 3px solid #c9c1b4; background: #3a3631; box-sizing: border-box; }
+.swade-vehicle-sheet .swv-token { width: 60px; height: 60px; border-radius: 50%; object-fit: contain; border: 3px solid #c9c1b4; background: #3a3631; box-sizing: border-box; }
 .swade-vehicle-sheet .swv-token.is-mine { border-color: #7c2d12; }
 .swade-vehicle-sheet .swv-token.is-other { opacity: .75; }
 .swade-vehicle-sheet .swv-token.is-empty { display: flex; align-items: center; justify-content: center; background: transparent; border: 2px dashed #b8b0a2; color: #6b655c; font-size: 10px; }
@@ -145,7 +145,7 @@
 .swade-vehicle-sheet .swv-equip.is-destroyed { opacity: .7; }
 .swade-vehicle-sheet .swv-equip summary { display: flex; gap: 8px; align-items: center; padding: 6px 10px; cursor: pointer; list-style: none; }
 .swade-vehicle-sheet .swv-equip summary::-webkit-details-marker { display: none; }
-.swade-vehicle-sheet .swv-equip summary img { width: 28px; height: 28px; border: 0; border-radius: 4px; object-fit: cover; }
+.swade-vehicle-sheet .swv-equip summary img { width: 28px; height: 28px; border: 0; border-radius: 4px; object-fit: contain; }
 .swade-vehicle-sheet .swv-equip-body { padding: 4px 12px 10px; border-top: 1px solid #eee8de; font-size: 13px; display: flex; flex-direction: column; gap: 6px; }
 .swade-vehicle-sheet .swv-equip-body p { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .swade-vehicle-sheet .swv-equip-body button { width: auto; flex: none; }
@@ -159,7 +159,7 @@
 /* Carte de dégâts (chat) */
 .swv-card { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 .swv-card-head { display: flex; gap: 8px; align-items: center; }
-.swv-card-head img { width: 36px; height: 36px; border: 0; border-radius: 50%; object-fit: cover; flex: none; }
+.swv-card-head img { width: 36px; height: 36px; border: 0; border-radius: 50%; object-fit: contain; flex: none; }
 .swv-card-head div { display: flex; flex-direction: column; min-width: 0; }
 .swv-card-head strong { font-size: 14px; line-height: 1.2; }
 .swv-card-head span { font-size: 11px; color: #6b655c; line-height: 1.3; }
@@ -178,21 +178,26 @@
 .swv-card-hint { margin: 0; font-size: 10px; color: #6b655c; text-align: center; }
 
 /* Bouton Heavy Metal ajouté aux cartes de tir de SWADE Tools */
-.swv-st-hm { margin-top: 6px; }
-.swv-st-hm button { width: 100%; font-size: 12px; line-height: 26px; }
+.swv-st-hm { display: flow-root; flex: 0 0 100%; width: 100%; box-sizing: border-box; margin: 6px 0 2px; clear: both; float: none; position: relative; }
+.swv-st-hm button { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 28px;
+  padding: 2px 8px; font-size: 12px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.swv-st-hm button i { flex: none; margin: 0; }
 .swv-st-hm button.is-primary { background: #7c2d12; border-color: #7c2d12; color: #fff; }
 
 /* Soutiens multiples */
-.swade-vehicle-sheet .swv-support-token { width: 24px; height: 24px; border-radius: 50%; border: 1px solid #c9c1b4; object-fit: cover; }
+.swade-vehicle-sheet .swv-support-token { width: 24px; height: 24px; border-radius: 50%; border: 1px solid #c9c1b4; object-fit: contain; }
 .swade-vehicle-sheet .swv-support-edit { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; border-top: 1px dashed #ddd5c8; }
 .swade-vehicle-sheet .swv-support-edit .swv-section-head { margin-top: 0; }
 .swade-vehicle-sheet .swv-support-item { padding: 6px 8px; border: 1px solid #eee8de; border-radius: 6px; background: #faf8f4; }
 .swade-vehicle-sheet .swv-support-item .swv-field { flex: 1 1 100px; }
 .swade-vehicle-sheet .swv-support-actor { flex: 1 1 100%; display: flex; gap: 6px; align-items: center; font-size: 12px; }
-.swade-vehicle-sheet .swv-support-actor img { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #c9c1b4; object-fit: cover; }
+.swade-vehicle-sheet .swv-support-actor img { width: 28px; height: 28px; border-radius: 50%; border: 1px solid #c9c1b4; object-fit: contain; }
 .swade-vehicle-sheet .swv-support-drop { flex: 1; padding: 4px 8px; border: 1px dashed #b8b0a2; border-radius: 6px; color: #6b655c; }
 .swv-support-card h3 { display: flex; gap: 6px; align-items: center; }
 .swv-support-card h3 img { width: 24px; height: 24px; border: 0; border-radius: 50%; }
 .swv-support-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
 .swv-support-results button { font-size: 12px; line-height: 24px; }
 .swv-support-results button.is-chosen { background: #7c2d12; color: #fff; border-color: #7c2d12; }
+
+/* Images : la plus grande dimension tient dans le cadre (pas de recadrage). */
+.swade-vehicle-sheet img, .swv-card-head img, .swv-support-card img { object-fit: contain; }

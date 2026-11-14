@@ -5,11 +5,12 @@ import { WARHEADS, resolveHeavyMetal } from "./rules/heavy-metal.js";
 import { toInt } from "./rules/numbers.js";
 import { applyCritical, applyOutOfControl } from "./services/criticals.js";
 import { powerMods, powerState, powerSystems } from "./services/energy.js";
+import { fireWeaponFor } from "./services/fire.js";
 import { heavyMetalCombat, targetClasse } from "./services/heavy-metal.js";
 import { vehicleHasJoker } from "./services/joker.js";
 import { appendJournal } from "./services/journal.js";
 import { rollTrait } from "./services/rolls.js";
-import { shieldInfo } from "./services/shield.js";
+import { replenishShield, shieldInfo } from "./services/shield.js";
 import { apiCrew, apiCurrentHandling, apiManeuverModifiers, apiPilot, apiPostes, apiWeapons, apiWoundPenalty, asVehicle } from "./services/vehicle.js";
 import { setVehicleWounds, vehicleWoundsValue } from "./services/wounds.js";
 
@@ -83,7 +84,18 @@ export const api = {
   },
   applyOutOfControl: (ref) => { const v = asVehicle(ref); return v ? applyOutOfControl(v) : null; },
   applyCritical: (ref, options) => { const v = asVehicle(ref); return v ? applyCritical(v, options) : null; },
-  appendJournal: (ref, texts) => { const v = asVehicle(ref); return v ? appendJournal(v, [].concat(texts)) : null; }
+  appendJournal: (ref, texts) => { const v = asVehicle(ref); return v ? appendJournal(v, [].concat(texts)) : null; },
+  fireWeapon: async (ref, weaponId, options = {}) => {
+    const v = asVehicle(ref);
+    if (!v) { ui.notifications.warn("fireWeapon : véhicule introuvable."); return null; }
+    return fireWeaponFor(v, weaponId, options);
+  },
+  replenishShields: async (ref) => {
+    const v = asVehicle(ref);
+    if (!v) return null;
+    if (!(game.user.isGM || v.isOwner)) { ui.notifications.warn(`Recharge du bouclier de ${v.name} : droits insuffisants.`); return null; }
+    return replenishShield(v);
+  }
 };
 
 /* ------------------------------------------------------------------ */

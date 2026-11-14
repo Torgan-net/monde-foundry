@@ -23,7 +23,7 @@ Ce qu'on peut calculer est calculé, et chaque valeur calculée peut être forc�
 
 | Valeur | Calcul |
 |---|---|
-| **Échelle** | D'après la Taille du véhicule. |
+| **Échelle** | Modificateur d'Échelle d'après la Taille (table des Tailles) : Minuscule −6, Très petit −4, Petit −2, Normal 0, Grand +2, Énorme +4, Gigantesque +6 (au-delà de la Taille 20 aussi). La fiche affiche le nom et le modificateur ensemble, par exemple « Gigantesque (+6) », pour ne pas confondre l'Échelle et son bonus. |
 | **Blessures max** | D'après la Taille. |
 | **Classe du véhicule** | D'après la Résistance de base (Armure comprise), avec la méthode *Calculating Class*. Elle n'est jamais lue dans le nom. |
 | **Classe d'une arme** | D'après les dégâts moyens et la PA. Les bonus fixes de dégâts sont ignorés. |

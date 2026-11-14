@@ -106,6 +106,22 @@ Une arme renvoyée par `getWeapons` :
 | `applyCritical(ref, { collision, rerollCrew })` | tire une Dégradation critique et applique ses effets ; renvoie le total du 2d6 |
 | `setWounds(ref, valeur, motif)` | fixe les Blessures ; au-delà du maximum, le véhicule devient une Épave (message dans le chat) |
 | `appendJournal(ref, texte | [textes])` | ajoute des entrées au journal du véhicule |
+| `fireWeapon(ref, weaponId, { shooter, mods })` | tir d'une arme du véhicule (voir ci-dessous) ; renvoie `{ vehicle, weapon, shooter, poste, mods, via }` ou `null` |
+| `replenishShields(ref)` | recharge complète du bouclier, avec une entrée au journal ; renvoie `{ value, max }`, ou `null` sans bouclier ou sans droits (MJ ou propriétaire) |
+
+### fireWeapon
+
+```js
+const r = await api.fireWeapon(vehicle, weaponId, { shooter, mods: [{ label: "Clash", value: -2 }] });
+```
+
+- `weaponId` : identifiant de l'objet arme du véhicule (ou l'objet lui-même).
+- `shooter` (facultatif) : acteur, jeton ou UUID. Par défaut : l'occupant du poste auquel l'arme est rattachée.
+- `mods` (facultatif) : `[{ label, value }]`, ajoutés au jet.
+- Le poste occupé par le tireur apporte, avant `mods`, le +2 Joker (poste pilote) et ses bonus de soutien en attente, qui sont consommés. Un tireur qui n'occupe aucun poste n'en reçoit pas.
+- Le jet passe par le même chemin que le bouton « Tir » de la fiche : fenêtre de tir de SWADE Tools si ce lanceur est choisi, sinon le pipeline natif de SWADE (cadence, munitions), sinon le jet du module (compétence de l'arme, modificateur de l'arme, cadence).
+- `via` indique le lanceur utilisé : `"swade-tools"`, `"native"` ou `"module"`. Le résultat du jet est dans le chat (le module ne le renvoie pas).
+- Renvoie `null` avec un avertissement si le véhicule ou l'arme est introuvable, si l'arme est détruite, ou s'il n'y a pas de tireur.
 
 ## Exemple
 

@@ -82,7 +82,7 @@ for f, t in sorted(files.items()):
     needed = defaultdict(set)
     for name, src in exports.items():
         if src == f or name in own: continue
-        if re.search(r'(?<![\w.$#])' + re.escape(name) + r'\b(?!\s*:(?!:))', code):
+        if re.search(r'(?<![\w$#])(?:(?<!\.)|(?<=\.\.\.))' + re.escape(name) + r'\b(?!\s*:(?!:))', code):
             needed[src].add(name)
     block = "".join(f'import {{ {", ".join(sorted(n))} }} from "{rel(f, src)}";\n' for src, n in sorted(needed.items()))
     old_block = "".join(IMPORT_RE.findall(t))

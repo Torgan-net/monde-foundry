@@ -133,3 +133,12 @@ export async function shieldEmergencyRecharge(vehicle, operator) {
  *    armes détournées : dégâts −4 (Heavy Metal : −1 Blessure).
  * La recharge d'urgence du bouclier détourne l'énergie de la propulsion et des armes (boost « recharge »).
  */
+
+/** Recharge complète du bouclier. Renvoie { value, max }, ou null sans bouclier. */
+export async function replenishShield(vehicle) {
+  const info = shieldInfo(vehicle);
+  if (!info) return null;
+  await setShieldCharges(vehicle, info.max);
+  await appendJournal(vehicle, [`Bouclier rechargé (${info.max} / ${info.max})`]);
+  return { value: info.max, max: info.max };
+}

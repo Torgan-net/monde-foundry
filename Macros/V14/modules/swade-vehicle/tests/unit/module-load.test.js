@@ -84,3 +84,8 @@ test("API : soutiens multiples d'un poste et bonus cumulé", async () => {
   assert.equal(poste.supportBonus, 3);
   assert.equal(poste.support.label, "Servants"); // compatibilité : premier soutien
 });
+
+test("Carte de dégâts : le jet de manœuvre trouve ses modificateurs (import manquant depuis la 0.6.0)", async () => {
+  const src = await import("node:fs").then((fs) => fs.readFileSync(new URL("../../scripts/services/damage-card.js", import.meta.url), "utf8"));
+  assert.match(src, /import \{[^}]*apiManeuverModifiers[^}]*\} from "\.\/vehicle\.js"/);
+});

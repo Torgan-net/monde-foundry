@@ -1,7 +1,7 @@
 /** Constantes partagées du module : identifiant, version, rôles et types de postes, états, tables par défaut. */
 export const MODULE_ID = "swade-vehicle";
 
-export const VERSION = "0.6.5";
+export const VERSION = "0.7.2";
 
 export const ROLE_BY_TYPE = { pilote: "operator", artilleur: "gunner", autre: "other" };
 

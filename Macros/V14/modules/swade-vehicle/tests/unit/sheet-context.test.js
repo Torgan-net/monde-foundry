@@ -37,7 +37,9 @@ test("Contexte de la Passerelle : Classe, caractéristiques, postes, bouclier", 
   const ctx = await buildSheetContext(sheet, {});
   assert.equal(ctx.displayName, "Far Star");
   assert.equal(ctx.classe, "IV");
-  assert.match(ctx.subtitle, /Taille 15 · Échelle 6 · Manœuvre : Pilotage/);
+  assert.match(ctx.subtitle, /Taille 15 · Échelle Gigantesque \(\+6\) · Manœuvre : Pilotage/);
+  assert.equal(ctx.tech.scaleName, "Gigantesque");
+  assert.equal(ctx.tech.scaleMismatch, false); // échelle enregistrée = calculée : pas d'alerte
   assert.deepEqual(ctx.stats.find((s) => s.label === "Mods"), { label: "Mods", value: "10 / 60", warn: false });
   assert.equal(ctx.postes[0].occupant.name, "Darryn");
   assert.equal(ctx.postes[0].weapons[0].classe, "V");

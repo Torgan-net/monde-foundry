@@ -2,11 +2,12 @@ import { MODULE_ID, ROLE_BY_TYPE, ROLE_PRIORITY, TECH_FIELDS, TYPE_LABEL } from 
 import { computeVehicleClasse, stripClasse } from "../rules/classes.js";
 import { toInt } from "../rules/numbers.js";
 import { scaleForSize, woundsForSize } from "../rules/size.js";
-import { combineSupportBonuses, normalizeSupports, pendingSupportBonuses } from "../rules/support.js";
+import { normalizeSupports } from "../rules/support.js";
 import { actorFromUuid, getDragData, randomId } from "../services/foundry-utils.js";
 import { actorCombat } from "../services/heavy-metal.js";
 import { crewUuidFor, pruneInstances, referencedActors } from "../services/instances.js";
-import { vehicleHasJoker } from "../services/joker.js";
+import { jokerMods } from "../services/joker.js";
+import { takeSupportMods } from "../services/support.js";
 import { onClearJournal, onCritical, onDivertPower, onOutOfControl, onRechargeEnergy, onReloadWeapon, onRepair, onRestorePower, onShieldEmergency, onShieldFull, onShieldSoak, onSpendEnergy, onToggleStatus, onWound } from "./actions-gm.js";
 import { onDamage, onDamageHM, onFire, onGroupRoll, onManeuver, onModAction, onPosteSkill, onWeaponAction } from "./actions-rolls.js";
 import { onAddPoste, onAddSupport, onClearOccupant, onClearSupportActor, onCollapseAll, onDeletePoste, onDeleteSupport, onImportCrew, onOpenItem, onOpenNative, onOpenTweaks, onSwitchTab, onToggleCollapse, onToggleLock } from "./actions-ui.js";
@@ -423,15 +424,7 @@ export class SwadeVehicleSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
    * Bonus de soutien en attente sur un poste : renvoyé comme modificateur et consommé.
    * Il est retiré avant le jet (un jet annulé dans la fenêtre de SWADE le consomme quand même).
    */
-  async _takeSupport(poste) {
-    const list = poste ? pendingSupportBonuses(this.document.getFlag(MODULE_ID, `supportBonus.${poste.id}`)) : [];
-    if (!list.length) return [];
-    if (this.document.isOwner) await this.document.unsetFlag(MODULE_ID, `supportBonus.${poste.id}`);
-    else ui.notifications.info("Bonus de soutien appliqué : le MJ devra l'effacer de la fiche.");
-    const value = combineSupportBonuses(list.map((b) => b.value));
-    const names = list.map((b) => b.label).filter(Boolean).join(", ");
-    return value ? [{ label: `Soutien${names ? " · " + names : ""}`, value }] : [];
-  }
+  _takeSupport(poste) { return takeSupportMods(this.document, poste); }
 
   /** Champ d'un soutien (onglet Conception). */
   async _onSupportField(event) {
@@ -446,9 +439,7 @@ export class SwadeVehicleSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
   }
 
   /** +2 du Joker pour le seul pilote, quand le véhicule a tiré un Joker. */
-  _jokerMods(poste) {
-    return poste?.type === "pilote" && vehicleHasJoker(this.document) ? [{ label: "Joker", value: 2 }] : [];
-  }
+  _jokerMods(poste) { return jokerMods(this.document, poste); }
 
   _runtime(target) {
     const p = this.postes.find((x) => x.id === target.closest("[data-poste-id]")?.dataset.posteId);

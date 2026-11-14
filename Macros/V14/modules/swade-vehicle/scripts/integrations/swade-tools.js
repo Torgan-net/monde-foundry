@@ -109,7 +109,9 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
     const targetActors = String(f.usetarget ?? "").split(",").map((id) => canvas.tokens?.get(id)?.actor).filter(Boolean);
     openHeavyMetalDialog({ attacker: vehicle, weapon, weaponClass, occupant: shooter, targetActors });
   });
-  (html.querySelector(".message-content") ?? html).append(box);
+  // Tout en bas du message, après le contenu et les cibles de SWADE Tools, hors de sa barre de boutons
+  // (boutons flottants à gauche et à droite).
+  html.append(box);
 });
 
 /* ------------------------------------------------------------------ */

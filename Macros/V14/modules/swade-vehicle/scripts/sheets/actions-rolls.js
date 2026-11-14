@@ -5,6 +5,7 @@ import { fireViaSwadeTools, useSwadeToolsWeapons } from "../integrations/swade-t
 import { computeWeaponClasse, stripClasse } from "../rules/classes.js";
 import { toInt } from "../rules/numbers.js";
 import { powerMods } from "../services/energy.js";
+import { fireVehicleWeapon } from "../services/fire.js";
 import { heavyMetalCombat, openHeavyMetalDialog } from "../services/heavy-metal.js";
 import { consumeShots, nativeItemAction, rollTrait } from "../services/rolls.js";
 import { groupRoll } from "../services/support.js";
@@ -42,12 +43,7 @@ export async function onFire(event, target) {
   if (!weapon) return;
   if (!occupant) return ui.notifications.warn("Aucun occupant à ce poste.");
   const support = [...this._jokerMods(this._runtime(target).poste), ...(await this._takeSupport(this._runtime(target).poste))];
-  if (useSwadeToolsWeapons()) return fireViaSwadeTools(this.document, weapon, occupant, support);
-  if (await nativeItemAction(weapon, occupant, "formula", support)) return;
-  await rollTrait(occupant, weapon.system.actions?.trait || "Shooting", [
-    { label: stripClasse(weapon.name), value: toInt(weapon.system.actions?.traitMod) },
-    ...support
-  ], { rof: toInt(weapon.system.rof) });
+  await fireVehicleWeapon(this.document, weapon, occupant, support);
 }
 
 export async function onDamage(event, target) {

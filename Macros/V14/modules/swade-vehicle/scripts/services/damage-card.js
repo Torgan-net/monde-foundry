@@ -4,7 +4,7 @@ import { actorFromUuid, escapeHTML, isResponsibleGM, plural } from "./foundry-ut
 import { vehicleHasJoker } from "./joker.js";
 import { rollTrait } from "./rolls.js";
 import { askShieldOperator, shieldInfo, shieldSoak } from "./shield.js";
-import { apiPilot } from "./vehicle.js";
+import { apiManeuverModifiers, apiPilot } from "./vehicle.js";
 import { addVehicleWounds, setVehicleWounds, vehicleWoundsValue } from "./wounds.js";
 
 export function damageCardHTML(d) {

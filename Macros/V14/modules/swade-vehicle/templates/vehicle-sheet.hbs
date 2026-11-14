@@ -309,7 +309,7 @@
       <label class="swv-field" style="flex-basis: 100%">Type / classification <input type="text" data-tech="classification" value="{{tech.classification}}" placeholder="ex. Frégate, chasseur, char léger"></label>
       <label class="swv-field">Taille <input type="number" min="0" step="1" data-tech="size" value="{{tech.size}}"></label>
       <div class="swv-field">
-        <label for="swv-scale">Échelle {{#unless tech.scaleForced}}<span class="swv-hint">(d'après la Taille)</span>{{/unless}}</label>
+        <label for="swv-scale">Échelle : <strong>{{tech.scaleName}}</strong> · modificateur {{#unless tech.scaleForced}}<span class="swv-hint">(d'après la Taille)</span>{{/unless}}</label>
         {{#if tech.scaleForced}}
         <input id="swv-scale" type="number" step="1" data-tech="scale" value="{{tech.scale}}">
         {{else}}

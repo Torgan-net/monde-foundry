@@ -65,3 +65,8 @@ Hooks.on("updateCombatant", (combatant, changes) => {
 /* ------------------------------------------------------------------ */
 /* Jet de groupe du soutien                                             */
 /* ------------------------------------------------------------------ */
+
+/** +2 du Joker pour le seul pilote, quand le véhicule a tiré un Joker. */
+export function jokerMods(vehicle, poste) {
+  return poste?.type === "pilote" && vehicleHasJoker(vehicle) ? [{ label: "Joker", value: 2 }] : [];
+}

@@ -1,5 +1,5 @@
 import { MANEUVER_SKILLS, MODULE_ID, maneuverLabel } from "../constants.js";
-import { groupRollOutcome, normalizeSupports } from "../rules/support.js";
+import { combineSupportBonuses, groupRollOutcome, normalizeSupports, pendingSupportBonuses } from "../rules/support.js";
 import { actorFromUuid, escapeHTML, findSkill, tokenImg } from "./foundry-utils.js";
 import { rollTrait } from "./rolls.js";
 
@@ -185,3 +185,14 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
     });
   }
 });
+
+/** Bonus de soutien en attente d'un poste, cumulés et consommés (effacés si l'utilisateur peut écrire). */
+export async function takeSupportMods(vehicle, poste) {
+  const list = poste ? pendingSupportBonuses(vehicle.getFlag(MODULE_ID, `supportBonus.${poste.id}`)) : [];
+  if (!list.length) return [];
+  if (vehicle.isOwner) await vehicle.unsetFlag(MODULE_ID, `supportBonus.${poste.id}`);
+  else ui.notifications.info("Bonus de soutien appliqué : le MJ devra l'effacer de la fiche.");
+  const value = combineSupportBonuses(list.map((b) => b.value));
+  const names = list.map((b) => b.label).filter(Boolean).join(", ");
+  return value ? [{ label: `Soutien${names ? " · " + names : ""}`, value }] : [];
+}

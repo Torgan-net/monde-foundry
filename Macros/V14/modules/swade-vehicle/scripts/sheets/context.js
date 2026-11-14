@@ -5,7 +5,7 @@ import { computeVehicleClasse, computeWeaponClasse, stripClasse, weaponClasseVal
 import { powerLabel } from "../rules/energy.js";
 import { WARHEADS } from "../rules/heavy-metal.js";
 import { toInt } from "../rules/numbers.js";
-import { scaleForSize, woundsForSize } from "../rules/size.js";
+import { scaleForSize, scaleName, scaleText, woundsForSize } from "../rules/size.js";
 import { combineSupportBonuses, defaultSupportSkill, normalizeSupports, pendingSupportBonuses, supportCrewCount } from "../rules/support.js";
 import { CRIT_MAX } from "../rules/tables.js";
 import { powerMods, powerState, powerSystems } from "../services/energy.js";
@@ -195,7 +195,8 @@ export async function buildSheetContext(sheet, context) {
       scale: actor._source?.system?.scale ?? sys.scale ?? 0,
       scaleForced: !!actor.getFlag(MODULE_ID, "scaleForced"),
       scaleAuto: scaleForSize(actor._source?.system?.size ?? sys.size),
-      get scaleMismatch() { return !sheet.scaleForced && sheet.scale !== sheet.scaleAuto; },
+      get scaleName() { return scaleName(this.scaleForced ? this.scale : this.scaleAuto) ?? "hors table"; },
+      get scaleMismatch() { return !this.scaleForced && this.scale !== this.scaleAuto; },
       handling: actor._source?.system?.handling ?? sys.handling ?? 0,
       speed: actor._source?.system?.topspeed?.value ?? sys.topspeed?.value ?? 0,
       speedUnit: actor._source?.system?.topspeed?.unit ?? sys.topspeed?.unit ?? "",
@@ -239,7 +240,7 @@ export async function buildSheetContext(sheet, context) {
     classe,
     classeOverride,
     classeSource: classeOverride ? "forcée" : (classeAuto ? "calculée" : "calcul à venir"),
-    subtitle: [sys.classification, `Taille ${sys.size ?? "?"}`, `Échelle ${effectiveScale(actor)}`,
+    subtitle: [sys.classification, `Taille ${sys.size ?? "?"}`, `Échelle ${scaleText(effectiveScale(actor))}`,
       `Manœuvre : ${maneuverLabel(sys.driver?.skill) ?? "non définie"}`].filter(Boolean).join(" · "),
     stats: [
       { label: "Maniabilité", value: sys.handling ?? 0 },

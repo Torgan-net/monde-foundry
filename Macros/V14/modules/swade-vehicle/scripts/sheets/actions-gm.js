@@ -8,7 +8,7 @@ import { applyCritical, applyOutOfControl, repairCriticals } from "../services/c
 import { powerState, powerSystems, setPower } from "../services/energy.js";
 import { actorFromUuid, askNumber, escapeHTML } from "../services/foundry-utils.js";
 import { appendJournal } from "../services/journal.js";
-import { askShieldOperator, setShieldCharges, shieldEmergencyRecharge, shieldInfo, shieldOperator, shieldSoak } from "../services/shield.js";
+import { askShieldOperator, replenishShield, shieldEmergencyRecharge, shieldInfo, shieldOperator, shieldSoak } from "../services/shield.js";
 import { apiCrew } from "../services/vehicle.js";
 import { setVehicleWounds, vehicleWoundsValue } from "../services/wounds.js";
 
@@ -119,10 +119,7 @@ export async function onRestorePower() {
 /** Recharge complète (10 minutes hors combat), MJ. */
 export async function onShieldFull() {
   if (!game.user.isGM) return;
-  const info = shieldInfo(this.document);
-  if (!info) return;
-  await setShieldCharges(this.document, info.max);
-  await appendJournal(this.document, [`Bouclier rechargé (${info.max} / ${info.max})`]);
+  await replenishShield(this.document);
 }
 
 /** Dépense d'Énergie : montant et motif, refusée si la réserve est insuffisante. */

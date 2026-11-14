@@ -1,7 +1,24 @@
 # Journal des versions
 
+## 0.7.2
+
+- Échelle : la fiche affiche le nom et le modificateur ensemble (« Gigantesque (+6) »), dans l'en-tête comme dans la Conception, pour ne pas confondre l'Échelle et son bonus.
+- Correction : modificateur d'Échelle des petites Tailles aligné sur la table des Tailles (Taille −2 : Petit −2 ; Taille −1 : Normal 0).
+- Correction : l'alerte « enregistrée : … (corrigée au prochain changement de Taille) » pouvait s'afficher à tort.
+
+## 0.7.1
+
+- Carte de tir SWADE Tools : le bouton « Dégâts Heavy Metal » est placé tout en bas du message, après les cibles, sur sa propre ligne (il se glissait entre les boutons flottants de SWADE Tools).
+
+## 0.7.0
+
+- API : `fireWeapon(ref, weaponId, { shooter, mods })` (tir par le même chemin que la fiche : SWADE Tools, pipeline natif ou jet du module ; Joker et soutiens du poste du tireur) et `replenishShields(ref)` (recharge complète du bouclier). Utilisées par swade-clash.
+- Le tir de la fiche, le Joker, les soutiens et la recharge du bouclier passent par des services partagés avec l'API.
+- Correction : le jet de manœuvre depuis la carte de dégâts échouait (import manquant depuis la 0.6.0, non détecté par l'outil de vérification à cause de la syntaxe `...fonction()` ; outil corrigé).
+
 ## 0.6.5
 
+- Images (véhicule, occupants, soutiens, objets, cartes du chat) : réduites pour que la plus grande dimension tienne dans le cadre, au lieu d'être recadrées.
 - Passerelle : le texte d'aide après le nom des soutiens est retiré (il reste en info-bulle sur le nom).
 - Soutien avec acteur : plus de compétence imposée par le poste (Pilotage, Tir). Sans réglage, la compétence proposée est la première de la liste de l'acteur.
 
