@@ -1,9 +1,12 @@
 {
   "id": "swade-tweaks",
-  "title": "SWADE – Réglages",
-  "version": "1.0.0",
+  "title": "SWADE Tweaks",
+  "description": "Groupes du Combat Tracker SWADE : nom et image du meneur, icône distinctive.",
+  "version": "1.1.0",
   "compatibility": { "minimum": "14", "verified": "14" },
-  "relationships": { "systems": [{ "id": "swade", "type": "system" }] },
-  "esmodules": ["main.js"],
-  "styles": ["styles.css"]
+  "relationships": {
+    "systems": [{ "id": "swade", "type": "system", "compatibility": { "minimum": "6.0" } }]
+  },
+  "esmodules": ["scripts/main.js"],
+  "styles": ["styles/swade-tweaks.css"]
 }

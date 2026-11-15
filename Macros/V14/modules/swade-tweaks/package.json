@@ -1,0 +1,9 @@
+{
+  "name": "swade-tweaks",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/unit/*.test.js",
+    "check": "node --check scripts/main.js && node --check scripts/api.js && node --check scripts/constants.js && node --check scripts/rules/group-label.js && node --check scripts/services/groups.js"
+  }
+}

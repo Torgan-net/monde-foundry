@@ -1,0 +1,32 @@
+/* ===== swade-tweaks : icône des groupes dans le Combat Tracker ===== */
+.group-header {
+  --swade-tweaks-group-color: #b08d57;   /* laiton patiné, à ajuster */
+  --swade-tweaks-badge-left: 30px;       /* position du badge sur l'icône */
+  position: relative;
+}
+
+/* Icône ronde + bordure + halo */
+.group-header > img.token-image[data-group-id] {
+  border: 2px solid var(--swade-tweaks-group-color);
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 6px 1px var(--swade-tweaks-group-color);
+}
+
+/* Badge « groupe » en bas à droite de l'icône */
+.group-header::before {
+  content: "\f0c0"; /* Font Awesome : users */
+  font-family: var(--font-awesome, "Font Awesome 6 Pro");
+  font-weight: 900;
+  position: absolute;
+  left: var(--swade-tweaks-badge-left);
+  bottom: 2px;
+  font-size: 9px;
+  line-height: 1;
+  padding: 2px;
+  border-radius: 50%;
+  background: var(--swade-tweaks-group-color);
+  color: #1a1410;
+  pointer-events: none;
+  z-index: 1;
+}
