@@ -1,6 +1,6 @@
 import { MODULE_ID, ROLE_BY_TYPE, ROLE_PRIORITY, TECH_FIELDS, TYPE_LABEL } from "../constants.js";
 import { computeVehicleClasse, stripClasse } from "../rules/classes.js";
-import { toInt } from "../rules/numbers.js";
+import { techValue, toInt } from "../rules/numbers.js";
 import { scaleForSize, woundsForSize } from "../rules/size.js";
 import { normalizeSupports } from "../rules/support.js";
 import { actorFromUuid, getDragData, randomId } from "../services/foundry-utils.js";
@@ -378,12 +378,7 @@ export class SwadeVehicleSheet extends HandlebarsApplicationMixin(ActorSheetV2) 
     const path = el.dataset.tech;
     const kind = TECH_FIELDS[path];
     if (!kind) return;
-    let value;
-    if (kind === "text") value = el.value.trim();
-    else {
-      value = toInt(el.value);
-      if (kind === "int") value = Math.max(0, value);
-    }
+    const value = techValue(kind, el.value);
     el.value = value;
     const update = { [`system.${path}`]: value };
     // Échelle calculée d'après la Taille, sauf si elle est forcée.

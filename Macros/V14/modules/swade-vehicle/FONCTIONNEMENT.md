@@ -28,7 +28,7 @@ Ce qu'on peut calculer est calculé, et chaque valeur calculée peut être forc�
 | **Classe du véhicule** | D'après la Résistance de base (Armure comprise), avec la méthode *Calculating Class*. Elle n'est jamais lue dans le nom. |
 | **Classe d'une arme** | D'après les dégâts moyens et la PA. Les bonus fixes de dégâts sont ignorés. |
 
-La Classe s'affiche à côté du nom du véhicule et de celui de chaque arme. Le type de véhicule et la Taille se modifient dans la fiche technique.
+La Classe s'affiche à côté du nom du véhicule et de celui de chaque arme. Le type de véhicule et la Taille se modifient dans la fiche technique. La Taille peut être négative pour les petits véhicules (scooter, planche à roulettes…), jusqu'à −4.
 
 Quand un **effet actif** modifie un champ (par exemple de l'Armure ajoutée par un objet), le module l'indique sous le champ concerné. On voit ainsi d'où vient une valeur.
 

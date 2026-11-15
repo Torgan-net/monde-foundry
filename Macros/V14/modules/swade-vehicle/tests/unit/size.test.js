@@ -22,3 +22,15 @@ test("Nom de l'Échelle et modificateur affichés ensemble", () => {
   assert.equal(scaleText(0), "Normal (0)");
   assert.equal(scaleText(3), "modificateur +3");
 });
+
+test("Saisie de la Taille : négative autorisée jusqu'à −4 (scooter, planche à roulettes…)", async () => {
+  const { techValue } = await import("../../scripts/rules/numbers.js");
+  assert.equal(techValue("size", "-2"), -2);
+  assert.equal(techValue("size", "−3"), -3);
+  assert.equal(techValue("size", "-9"), -4);   // Minuscule : Taille −4 au plus petit
+  assert.equal(techValue("size", "21"), 21);
+  assert.equal(techValue("int", "-2"), 0);     // les autres valeurs restent positives
+  assert.equal(techValue("signed", "-2"), -2);
+  assert.equal(techValue("text", "  Frégate "), "Frégate");
+  assert.equal(scaleForSize(-2), -2);
+});

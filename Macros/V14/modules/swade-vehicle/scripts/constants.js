@@ -1,7 +1,7 @@
 /** Constantes partagées du module : identifiant, version, rôles et types de postes, états, tables par défaut. */
 export const MODULE_ID = "swade-vehicle";
 
-export const VERSION = "0.7.2";
+export const VERSION = "0.7.3";
 
 export const ROLE_BY_TYPE = { pilote: "operator", artilleur: "gunner", autre: "other" };
 
@@ -23,7 +23,7 @@ export const DEFAULT_IMG = "icons/svg/mystery-man.svg";
 /** Caractéristiques modifiables depuis l'onglet Conception : chemin système → type de valeur. */
 export const TECH_FIELDS = {
   "classification": "text",
-  "size": "int",
+  "size": "size",
   "scale": "signed",
   "handling": "signed",
   "topspeed.value": "int",

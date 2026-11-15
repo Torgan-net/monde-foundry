@@ -1,5 +1,9 @@
 # Journal des versions
 
+## 0.7.3
+
+- Taille négative autorisée pour les petits véhicules (scooter, planche à roulettes…), jusqu'à −4 (Minuscule) ; l'Échelle et les Blessures suivent la table des Tailles.
+
 ## 0.7.2
 
 - Échelle : la fiche affiche le nom et le modificateur ensemble (« Gigantesque (+6) »), dans l'en-tête comme dans la Conception, pour ne pas confondre l'Échelle et son bonus.
