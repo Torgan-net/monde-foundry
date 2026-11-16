@@ -1,0 +1,20 @@
+{
+  "id": "swade-chase",
+  "title": "SWADE – Poursuites",
+  "description": "Aide aux poursuites SWADE (VF) : actions possibles avec explications, Complications au trèfle, lecture de la piste posée avec Complete Card Management.",
+  "version": "0.4.7",
+  "authors": [{ "name": "Arnok" }],
+  "compatibility": { "minimum": "14", "verified": "14" },
+  "esmodules": ["scripts/main.js"],
+  "styles": ["styles/swade-chase.css"],
+  "languages": [{ "lang": "fr", "name": "Français", "path": "lang/fr.json" }],
+  "socket": true,
+  "relationships": {
+    "systems": [{ "id": "swade", "type": "system", "compatibility": { "minimum": "6.0" } }],
+    "recommends": [
+      { "id": "complete-card-management", "type": "module", "reason": "Lecture de la piste de cartes de poursuite posée sur la scène." },
+      { "id": "swade-vehicle", "type": "module", "reason": "Jets de Manœuvre et Pertes de contrôle des véhicules." },
+      { "id": "swade-tools", "type": "module", "reason": "Lanceur de jets optionnel." }
+    ]
+  }
+}

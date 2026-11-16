@@ -1,0 +1,235 @@
+<div class="sc-root">
+
+  {{#if noCombat}}
+    <div class="sc-body">
+      <div class="sc-empty">
+        <i class="fa-solid fa-person-running sc-empty-icon"></i>
+        <p><strong>Aucun combat en cours.</strong></p>
+        <p class="sc-muted">Le MJ crée une rencontre dans le suivi de combat, pose la piste de cartes de poursuite sur la scène et place les jetons le long de la piste.</p>
+      </div>
+    </div>
+
+  {{else if inactive}}
+    <div class="sc-body">
+      <div class="sc-empty">
+        <i class="fa-solid fa-person-running sc-empty-icon"></i>
+        {{#if isGM}}
+          <p><strong>Démarrer une poursuite</strong></p>
+          <p class="sc-muted">Cartes de poursuite détectées sur la scène : <strong>{{trackCount}}</strong>.
+            {{#unless trackCount}}Posez la piste avec Complete Card Management (neuf cartes suffisent en général).{{/unless}}</p>
+          {{> configForm}}
+          {{#unless started}}<p class="sc-muted"><i class="fa-solid fa-circle-info"></i> Lancez aussi le combat : les Complications se détectent à la distribution des cartes d'action.</p>{{/unless}}
+          <button type="button" class="sc-primary" data-action="start"><i class="fa-solid fa-flag"></i> Démarrer la poursuite</button>
+        {{else}}
+          <p><strong>Pas de poursuite en cours.</strong></p>
+          <p class="sc-muted">Ce panneau s'ouvrira quand le MJ en démarrera une.</p>
+        {{/if}}
+      </div>
+    </div>
+
+  {{else}}
+    {{!-- En-tête fixe : participant, cartes, tour --}}
+    <div class="sc-top">
+      <div class="sc-chase-bar">
+        <span class="sc-chase-type"><i class="fa-solid fa-route"></i> {{typeLabel}}</span>
+        <span class="sc-pill" data-tooltip="Portée = écart en cartes × Intervalle">Intervalle {{interval}}</span>
+        <span class="sc-pill">{{trackCount}} cartes</span>
+        <span class="sc-pill">Round {{round}}</span>
+      </div>
+
+      {{#if trackWarning}}<div class="sc-banner sc-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{trackWarning}}</div>{{/if}}
+
+      {{#if noUnits}}
+        <p class="sc-muted">Vous ne contrôlez aucun participant de cette poursuite.</p>
+      {{else}}
+        {{#if unit}}
+        <div class="sc-unit {{#if unit.isTurn}}sc-is-turn{{/if}}">
+          {{#if unit.img}}<img src="{{unit.img}}" alt="" class="sc-portrait">{{/if}}
+          <div class="sc-unit-main">
+            {{#if showUnitSelect}}
+              <select class="sc-unit-select" data-sc-field="unit" aria-label="Participant">
+                {{#each units}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+              </select>
+            {{else}}
+              <strong class="sc-unit-name">{{unit.name}}</strong>
+            {{/if}}
+            <div class="sc-chips">
+              <span class="sc-chip" data-tooltip="Carte d'action : ordre d'initiative. Un trèfle déclenche une Complication.">
+                <i class="fa-solid fa-bolt"></i>
+                {{#if unit.actionCard}}<b class="sc-card {{#if unit.actionCard.red}}sc-red{{/if}} {{#if unit.actionCard.clubs}}sc-alert{{/if}}">{{unit.actionCard.label}}</b>{{else}}<b class="sc-card sc-none">—</b>{{/if}}
+              </span>
+              <span class="sc-chip" data-tooltip="Carte de poursuite : position sur la piste. Son enseigne fixe le modificateur d'une Complication.">
+                <i class="fa-solid fa-route"></i>
+                {{#if unit.chaseCard}}<b class="sc-card {{#if unit.chaseCard.red}}sc-red{{/if}}">{{unit.chaseCard.label}}</b> <span class="sc-muted">{{unit.chaseCard.position}}/{{unit.chaseCard.count}}</span>{{else}}<b class="sc-card sc-none">?</b>{{/if}}
+              </span>
+              <span class="sc-chip sc-status sc-status-{{unit.status}}" data-tooltip="{{unit.modeLabel}} · Manœuvre : {{unit.skill}}">{{unit.statusLabel}}</span>
+              {{#if unit.isTurn}}<span class="sc-chip sc-turn-tag">Son tour</span>{{/if}}
+              {{#if unit.mount}}<span class="sc-chip" data-tooltip="Monture{{#if unit.mount.fatigue}} : sa Fatigue pénalise les jets d'Équitation{{/if}}"><i class="fa-solid fa-horse"></i> {{unit.mount.name}}{{#if unit.mount.fatigue}} (Fatigue {{unit.mount.fatigue}}){{/if}}</span>{{/if}}
+              {{#if unit.onHold}}<span class="sc-chip sc-hold-tag" data-tooltip="Peut interrompre un adversaire (jet opposé)"><i class="fa-solid fa-hourglass-half"></i> En attente</span>{{/if}}
+            </div>
+          </div>
+        </div>
+
+        {{#if unit.complication}}<div class="sc-banner sc-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{unit.complication}}</div>{{/if}}
+        {{#with unit.complicationBlock as |cb|}}
+          <section class="sc-complication-box">
+            <header><span class="sc-card">♣</span> <strong>Complication</strong> : à résoudre avant toute action</header>
+            {{#if cb.needSuit}}
+              <p>Le jeton n'est pas rattaché à la piste : sur quelle carte de poursuite est-il ?</p>
+              <div class="sc-buttons">{{#each cb.suits}}<button type="button" data-action="compSuit" data-suit="{{value}}" {{#unless ../cb.canAct}}disabled{{/unless}}>{{label}}</button>{{/each}}</div>
+            {{else}}
+              <p>Carte de poursuite <b class="sc-card {{#if cb.red}}sc-red{{/if}}">{{cb.symbol}}</b> {{cb.suitLabel}} : jet de <strong>{{cb.skill}}</strong> à <strong>{{cb.total}}</strong> <span class="sc-muted">({{cb.modsText}})</span>.</p>
+              <p class="sc-reason">{{cb.failureText}}</p>
+              {{#if cb.canAct}}
+                <div class="sc-buttons">
+                  <button type="button" data-action="compRoll" {{#if cb.busy}}disabled{{/if}}><i class="fa-solid fa-dice"></i> Lancer le jet</button>
+                </div>
+                <div class="sc-buttons">
+                  <button type="button" data-action="compResolve" data-outcome="success" class="sc-ok {{#if cb.suggestedSuccess}}sc-suggested{{/if}}" {{#if cb.busy}}disabled{{/if}}><i class="fa-solid fa-check"></i> Réussite</button>
+                  <button type="button" data-action="compResolve" data-outcome="failure" class="sc-ko {{#if cb.suggestedFailure}}sc-suggested{{/if}}" {{#if cb.busy}}disabled{{/if}}><i class="fa-solid fa-xmark"></i> Échec</button>
+                </div>
+                <p class="sc-muted">Choisissez le résultat après une éventuelle relance avec un Jeton.</p>
+              {{else}}
+                <p class="sc-muted">En attente du jet du joueur.</p>
+              {{/if}}
+            {{/if}}
+          </section>
+        {{/with}}
+        {{#if unit.offTrack}}<div class="sc-banner sc-warn"><i class="fa-solid fa-location-dot"></i> {{unit.offTrack}}</div>{{/if}}
+        {{#if unit.ambiguous}}<div class="sc-banner sc-info"><i class="fa-solid fa-arrows-left-right"></i> {{unit.ambiguous}}</div>{{/if}}
+
+        {{#unless unit.out}}
+        <div class="sc-turn">
+          <span class="sc-turn-label">Actions ce tour</span>
+          <div class="sc-segmented {{#if turn.locked}}sc-locked{{/if}}" role="group" aria-label="Nombre d'actions prévues" data-tooltip="{{turn.lockTip}}">
+            {{#each turn.options}}
+              <button type="button" data-action="plan" data-n="{{n}}" class="{{#if selected}}sc-on{{/if}}" {{#if disabled}}disabled{{/if}}>{{label}}</button>
+            {{/each}}
+          </div>
+          <span class="sc-turn-state">
+            <span class="sc-pill {{#if turn.freeUsed}}sc-used{{/if}}" data-tooltip="Une action gratuite au plus par tour">Gratuite {{#if turn.freeUsed}}utilisée{{else}}libre{{/if}}</span>
+            <span class="sc-pill {{#if turn.exclusive}}sc-used{{/if}}">Actions {{turn.used}}/{{turn.planned}}</span>
+          </span>
+          <button type="button" class="sc-help-btn {{#if turn.helpOpen}}sc-on{{/if}}" data-action="help" data-help-id="turn" data-tooltip="Comment compter ses actions"><i class="fa-solid fa-circle-question"></i></button>
+          {{#if turn.isTurn}}{{#if unit.canAct}}{{#unless turn.done}}{{#unless turn.spent}}
+            <button type="button" class="sc-skip" data-action="endTurnEarly" data-tooltip="Passer au participant suivant (avertissement s'il reste des actions)"><i class="fa-solid fa-forward"></i> Fin du tour</button>
+          {{/unless}}{{/unless}}{{/if}}{{/if}}
+        </div>
+        {{#if turn.spent}}
+          <div class="sc-banner sc-done">
+            <span><i class="fa-solid fa-hourglass-end"></i> Actions déclarées faites : il reste l'action gratuite, ou passez au suivant.</span>
+            {{#if turn.isTurn}}{{#if unit.canAct}}<button type="button" data-action="endTurn"><i class="fa-solid fa-forward"></i> Participant suivant</button>{{/if}}{{/if}}
+          </div>
+        {{/if}}
+        {{#if turn.done}}
+          <div class="sc-banner sc-done">
+            <span><i class="fa-solid fa-flag-checkered"></i> Tour terminé : il ne reste qu'à passer au participant suivant.</span>
+            {{#if turn.isTurn}}{{#if unit.canAct}}<button type="button" class="sc-primary" data-action="endTurn"><i class="fa-solid fa-forward"></i> Participant suivant</button>{{/if}}{{/if}}
+          </div>
+        {{/if}}
+        {{#if turn.helpOpen}}
+          <p class="sc-help-text">Le nombre d'actions se choisit avant la première action et ne change plus ensuite (sauf correction du MJ). Une fois les actions déclarées faites, l'action gratuite reste possible ; quand elle l'est aussi, tout est grisé et il ne reste qu'à passer au participant suivant (le bouton est aussi disponible dès les actions déclarées faites). Choisissez avant d'agir le nombre d'actions du tour : 1 (sans malus), 2 (−2) ou 3 (−4). Le malus d'actions multiples s'ajoute aux jets faits en action. Vous pouvez en plus faire une action gratuite (une seule). Une action exclusive, comme Fuir, se joue seule : aucune autre action, ni gratuite, ni multiple. Pour une attaque ou un pouvoir lancé depuis la fiche, « Déclarer » compte l'action ; reportez le malus dans la fenêtre de jet.</p>
+        {{/if}}
+        {{/unless}}
+
+        {{!-- Onglets --}}
+        <nav class="sc-tabs" role="tablist">
+          {{#each tabs}}
+            <button type="button" role="tab" data-action="setTab" data-tab="{{id}}" class="{{#if active}}sc-on{{/if}}" aria-selected="{{#if active}}true{{else}}false{{/if}}" data-tooltip="{{title}}">
+              {{label}}{{#if count}} <span class="sc-count">{{count}}</span>{{/if}}
+            </button>
+          {{/each}}
+        </nav>
+        {{/if}}
+      {{/if}}
+    </div>
+
+    <div class="sc-body">
+      {{#if unit}}
+        {{#if unit.out}}<p class="sc-muted sc-center">Ce participant est hors poursuite : aucune action de poursuite.</p>{{/if}}
+
+        {{#if currentTab.gm}}
+          <section class="sc-config-box">
+            <h3>{{unit.name}}</h3>
+            <div class="sc-gm-row">
+              <label class="sc-field"><span>Déplacement</span>
+                <select data-sc-field="mode">{{#each unit.modes}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+              </label>
+              <label class="sc-field"><span>Statut</span>
+                <select data-sc-field="status">{{#each unit.statuses}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+              </label>
+            </div>
+            {{#if unit.mounted}}
+              <label class="sc-field"><span>Monture
+                <span class="sc-help-inline" data-tooltip="Jeton de la scène qui porte le cavalier : en mode Automatique, le participant passe en Monté. Son Allure sert au bonus de vitesse, sa Fatigue pénalise les jets d'Équitation, ses dégâts font Bousculer le cavalier."><i class="fa-solid fa-circle-question"></i></span></span>
+                <select data-sc-field="mountTokenId">{{#each unit.mounts}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+              </label>
+            {{/if}}
+            <label class="sc-check" data-tooltip="Les équipages PNJ des navires, vaisseaux et véhicules conséquents accomplissent déjà leurs tâches : pas de Soutien ni d'Épreuve.">
+              <input type="checkbox" data-sc-field="npcCrew" {{#if unit.npcCrew}}checked{{/if}}> Équipage PNJ
+            </label>
+            <div class="sc-buttons">
+              <button type="button" data-action="gmBump" data-control="0" data-tooltip="Bousculer d'une carte (Repousser réussi, dégâts non détectés…)"><i class="fa-solid fa-arrows-left-right"></i> Bousculer</button>
+              {{#if unit.isVehicle}}
+                <button type="button" data-action="gmBump" data-control="1" data-tooltip="Dégâts au moins égaux à la Résistance, même sans Blessure : Bousculé + jet de contrôle du conducteur"><i class="fa-solid fa-car-burst"></i> Véhicule touché</button>
+              {{/if}}
+            </div>
+            <button type="button" data-action="resetTurn"><i class="fa-solid fa-rotate-left"></i> Réinitialiser le tour de ce participant</button>
+          </section>
+          <section class="sc-config-box">
+            <h3>Poursuite</h3>
+            {{> configForm}}
+            <button type="button" class="sc-danger" data-action="end"><i class="fa-solid fa-flag-checkered"></i> Terminer la poursuite</button>
+          </section>
+        {{else}}
+          <div class="sc-actions">
+            {{#each currentTab.actions}}
+              <article class="sc-action {{#unless available}}sc-disabled{{/unless}}">
+                <div class="sc-action-head">
+                  <span class="sc-action-name">{{label}}</span>
+                  {{#if exclusive}}<span class="sc-badge sc-excl" data-tooltip="Se joue seule : aucune autre action ce tour">Exclusive</span>{{/if}}
+                  <span class="sc-badge">{{timing}}</span>
+                  <button type="button" class="sc-help-btn {{#if helpOpen}}sc-on{{/if}}" data-action="help" data-help-id="{{id}}"
+                    aria-expanded="{{#if helpOpen}}true{{else}}false{{/if}}" data-tooltip="Explication de la règle">
+                    <i class="fa-solid fa-circle-question"></i>
+                  </button>
+                </div>
+                {{#if available}}<p class="sc-summary">{{summary}}</p>{{else}}<p class="sc-reason"><i class="fa-solid fa-lock"></i> {{reason}}</p>{{/if}}
+                {{#if helpOpen}}<p class="sc-help-text">{{help}}</p>{{/if}}
+                {{#if targets.length}}
+                  <ul class="sc-targets">
+                    {{#each targets}}
+                      <li><span>{{name}}</span>
+                        {{#if contact}}<span class="sc-pill sc-contact">même carte : contact</span>
+                        {{else}}<span class="sc-pill">{{gap}} carte(s) · Portée {{range}}</span>{{/if}}
+                      </li>
+                    {{/each}}
+                  </ul>
+                {{/if}}
+                {{#if available}}{{#if canAct}}
+                  <div class="sc-buttons">
+                    {{#if speedSelect}}
+                      <select data-sc-field="speed" class="sc-speed" aria-label="Bonus de vitesse" data-tooltip="{{speedTip}}">
+                        {{#each speedOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+                      </select>
+                    {{/if}}
+                    {{#each rolls}}
+                      <button type="button" data-action="roll" data-action-id="{{../id}}" data-key="{{key}}">
+                        <i class="fa-solid fa-dice"></i> {{label}}{{#if total}} <span class="sc-mod">{{total}}</span>{{/if}}
+                      </button>
+                    {{/each}}
+                    {{#each applies}}
+                      <button type="button" data-action="apply" data-action-id="{{../id}}" data-key="{{key}}"><i class="fa-solid fa-check"></i> {{label}}</button>
+                    {{/each}}
+                  </div>
+                {{/if}}{{/if}}
+              </article>
+            {{/each}}
+          </div>
+        {{/if}}
+      {{/if}}
+    </div>
+  {{/if}}
+
+  <footer class="sc-footer">Jets : {{launcherLabel}} · swade-chase v{{version}}</footer>
+</div>

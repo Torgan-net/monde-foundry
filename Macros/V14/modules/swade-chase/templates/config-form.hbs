@@ -1,0 +1,21 @@
+<div class="sc-config">
+  <label class="sc-field">
+    <span>Type de poursuite
+      <span class="sc-help-inline" data-tooltip="Fixe l'Intervalle : Portée = nombre de cartes entre les unités × Intervalle. Augmentez-le pour des armes à longue portée (ex. 100 pour des chars)."><i class="fa-solid fa-circle-question"></i></span>
+    </span>
+    <select data-sc-field="type">
+      {{#each config.types}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+    </select>
+  </label>
+  {{#if config.customInterval}}
+    <label class="sc-field"><span>Intervalle</span>
+      <input type="number" min="1" step="1" value="{{config.interval}}" data-sc-field="interval">
+    </label>
+  {{/if}}
+  <label class="sc-check" data-tooltip="−2 aux attaques à distance (Couvert) ; −2 supplémentaire aux jets de Complication, sauf Joker.">
+    <input type="checkbox" data-sc-field="cityStreets" {{#if config.cityStreets}}checked{{/if}}> Rues de la ville
+  </label>
+  <label class="sc-check" data-tooltip="Les Échecs critiques à pied sont remplacés : 1-2 perd son tour, 3-4 Fatigue, 5-6 chute.">
+    <input type="checkbox" data-sc-field="rooftops" {{#if config.rooftops}}checked{{/if}}> Sur les toits
+  </label>
+</div>
