@@ -14,19 +14,32 @@ export const COMPLICATION_TABLE = Object.freeze({
 
 export const VEHICLE_MODES = Object.freeze(["vehicle", "boat", "air"]);
 
+/** Qui tient les commandes d'un véhicule selon son mode. */
+export function driverWord(mode) {
+  return { air: "pilote", boat: "barreur" }[mode] ?? "conducteur";
+}
+
+/** Ce qu'un Échec critique de Manœuvre signifie concrètement, selon le mode. */
+function criticalMeaning(mode, rooftops) {
+  if (VEHICLE_MODES.includes(mode)) return "Perte de contrôle (jet sur la table des Pertes de contrôle)";
+  if (mode === "mounted") return "1d6 : 1-2 passe son tour, 3-4 Fatigue de la monture, 5-6 Fatigue du cavalier";
+  if (rooftops) return "1d6 : 1-2 perd son tour, 3-4 Fatigue, 5-6 chute";
+  return "un dé : pair, il perd le reste de son tour ; impair, il subit un niveau de Fatigue";
+}
+
 /**
  * @param {string|null} chaseSuit enseigne de la carte de poursuite de l'unité
- * @param {{cityStreets?:boolean}} [options]
+ * @param {{cityStreets?:boolean, mode?:string, rooftops?:boolean}} [options]
  * @returns {{suit:string, mods:{label:string,value:number}[], failure:"critical"|"bumped", cards:number, failureText:string}|null}
  */
-export function complicationFor(chaseSuit, { cityStreets = false } = {}) {
+export function complicationFor(chaseSuit, { cityStreets = false, mode = null, rooftops = false } = {}) {
   const row = COMPLICATION_TABLE[chaseSuit];
   if (!row) return null;
   const mods = [];
   if (row.mod) mods.push({ label: `Carte de poursuite (${SUIT_LABELS[chaseSuit]})`, value: row.mod });
   if (cityStreets && chaseSuit !== "joker") mods.push({ label: "Rues de la ville", value: -2 });
   const failureText = row.failure === "critical"
-    ? "Échec : traitez comme un Échec critique au jet de Manœuvre."
+    ? `Échec : traitez comme un Échec critique au jet de Manœuvre${mode ? ` (${criticalMeaning(mode, rooftops)})` : ""}.`
     : (row.cards === 2
       ? "Échec : l'unité est Bousculée de deux cartes de poursuite."
       : "Échec : l'unité est Bousculée d'une carte de poursuite.");
@@ -48,12 +61,12 @@ export function needsCriticalDie(mode) {
 export function criticalFailureEffect(mode, die, { rooftops = false } = {}) {
   if (VEHICLE_MODES.includes(mode)) {
     return { key: "outOfControl", outOfControl: true,
-      text: "Le conducteur fait un jet sur la table des Pertes de contrôle." };
+      text: `Perte de contrôle : le ${driverWord(mode)} fait un jet sur la table des Pertes de contrôle.` };
   }
   if (mode === "mounted") {
     if (die <= 2) return { key: "loseTurn", loseTurn: true, text: "Le cavalier passe son tour." };
     if (die <= 4) return { key: "mountFatigue", fatigue: "mount",
-      text: "La monture subit un niveau de Fatigue (il s'applique aussi aux jets d'Équitation du cavalier)." };
+      text: "La monture subit un niveau de Fatigue (qui s'applique aussi aux jets d'Équitation du cavalier)." };
     return { key: "riderFatigue", fatigue: "self",
       text: "Le cavalier subit un niveau de Fatigue (mauvais rebond, obstacle bas ou effort excessif)." };
   }

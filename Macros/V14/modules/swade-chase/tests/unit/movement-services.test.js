@@ -25,19 +25,23 @@ before(async () => {
 
 test("déplacement d'une carte vers l'avant : le jeton garde son décalage au-dessus de la carte", async () => {
   await mods.socket.asGM("moveUnit", { combatId: "combat1", combatantId: "cJa", steps: 1, why: "test" });
-  assert.deepEqual(lastTokenUpdate("t6").patch, { x: 3817, y: 1120 });   // 4♠ → 7♣ (+325,6 ; −60,8)
+  // 4♠ → 7♣ (+325,6 ; −60,8) : la place exacte (3817, 1120) est prise par Edrin, le jeton est décalé
+  const p = lastTokenUpdate("t6").patch;
+  assert.notDeepEqual(p, { x: 3817, y: 1120 });
   const view = mods.chase.computeChaseView(world.combat);
   assert.equal(view.units.get("cJa").loc.index, 8);
   assert.match(stubs.created.at(-1).content, /7♣/);
 });
 
 test("piste trop courte : le jeton s'arrête au bout et le MJ est prié d'ajouter des cartes", async () => {
+  globalThis.__confirmAnswer = false;                    // ne pas mettre fin à la poursuite
   const before = stubs.updates.filter((u) => u.doc === "token" && u.id === "t6").length;
   await mods.socket.asGM("moveUnit", { combatId: "combat1", combatantId: "cJa", steps: 2, why: "test" });
   assert.equal(stubs.updates.filter((u) => u.doc === "token" && u.id === "t6").length, before);  // déjà sur la dernière carte
   const msg = stubs.created.at(-1);
   assert.match(msg.content, /ajoutez 2 cartes/i);
   assert.ok(msg.whisper?.length, "message réservé au MJ");
+  globalThis.__confirmAnswer = undefined;
 });
 
 test("un joueur ne déplace pas le jeton d'un autre", async () => {
@@ -110,4 +114,33 @@ test("Lever le pied : compte comme une action ; annulé, rien n'est compté", as
   globalThis.__dialogQueue = ["m-1"];
   await mods.handlers.runActionApply(world.combat, "cG2", "liftFoot", "liftFoot");
   assert.deepEqual(world.combat.flags["swade-chase"].units.cG2.turn.standard, ["liftFoot"]);
+});
+
+test("déplacement automatique : le jeton ne se pose pas sur un autre jeton", async () => {
+  // Elharn vient sur la carte de Merryl / Edrin (7♣) : la place exacte d'Edrin est prise
+  const el = world.combatants.find((c) => c.id === "cEl").token;
+  Object.assign(el, { x: 3491, y: 1181 });   // même décalage que Janar au-dessus du 4♠
+  world.combat.flags["swade-chase"].units.cJa = { status: "in" };
+  const ja = tokenOf("cJa");
+  Object.assign(ja, { x: 3817, y: 1120 });   // Janar déjà à la place d'arrivée
+  await mods.socket.asGM("moveUnit", { combatId: "combat1", combatantId: "cEl", steps: 1, why: "test" });
+  const p = lastTokenUpdate("t5").patch;
+  assert.notDeepEqual(p, { x: 3817, y: 1120 });
+  const ov = (a, b) => a.x < b.x + 100 && b.x < a.x + 100 && a.y < b.y + 100 && b.y < a.y + 100;
+  for (const c of world.combatants) if (c.id !== "cEl") assert.ok(!ov(p, c.token), c.name);
+});
+
+test("dépassement de la dernière carte : le MJ peut mettre fin à la poursuite", async () => {
+  world.combat.flags["swade-chase"].chase.active = true;
+  const before = world.combat.flags["swade-chase"].chase.active;
+  assert.equal(before, true);
+  globalThis.__confirmAnswer = true;
+  await mods.socket.asGM("moveUnit", { combatId: "combat1", combatantId: "cEl", steps: 3, why: "test" });
+  assert.equal(world.combat.flags["swade-chase"].chase.active, false);
+  assert.match(globalThis.__lastConfirm.content, /dernière carte/);
+  world.combat.flags["swade-chase"].chase.active = true;
+  globalThis.__confirmAnswer = false;
+  await mods.socket.asGM("moveUnit", { combatId: "combat1", combatantId: "cEl", steps: 3, why: "test" });
+  assert.equal(world.combat.flags["swade-chase"].chase.active, true);
+  assert.match(stubs.created.at(-1).content, /Piste trop courte/);
 });

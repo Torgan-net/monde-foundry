@@ -271,3 +271,33 @@ test("« Fin du tour » anticipée : avertissement s'il reste des actions, puis 
   assert.match(warned, /il reste 1 action sur 1 et l'action gratuite/);
   assert.equal(stubs.updates.filter((u) => u.doc === "nextTurn").length, n + 1);
 });
+
+test("forcer la réouverture du panneau : seulement là où il est fermé", async () => {
+  const { ChasePanel } = mods.panel;
+  ChasePanel.instance = null;
+  game.settings.get = ((g) => (m, k) => (k === "autoOpen" ? false : g(m, k)))(game.settings.get);
+  const { broadcast } = await import("../../scripts/services/socket.js");
+  await broadcast("forceOpenPanel", { userIds: null });
+  assert.equal(ChasePanel.instance?.rendered, true);            // rouvert malgré autoOpen désactivé
+  let renders = 0;
+  const r = ChasePanel.instance.render.bind(ChasePanel.instance);
+  ChasePanel.instance.render = (o) => { renders++; return r(o); };
+  await broadcast("forceOpenPanel", { userIds: null });
+  assert.equal(renders, 0);                                     // déjà ouvert : rien
+  await broadcast("forceOpenPanel", { userIds: ["autre"] });
+  assert.equal(renders, 0);                                     // pas pour cet utilisateur
+});
+
+test("Se dérober : texte adapté à un véhicule ou à un personnage à pied", async () => {
+  const ed = world.combatants.find((c) => c.id === "cEd");
+  world.combat.flags["swade-chase"].units.cEd = { turn: null };
+  await mods.handlers.runActionApply(world.combat, "cEd", "evade", "evadeFree");
+  const foot = stubs.created.at(-1).content;
+  assert.doesNotMatch(foot, /son véhicule/);
+  ed.actor.type = "vehicle";
+  world.combat.round = 9;
+  await mods.handlers.runActionApply(world.combat, "cEd", "evade", "evadeFree");
+  assert.match(stubs.created.at(-1).content, /le véhicule et ses passagers/);
+  ed.actor.type = "character";
+  world.combat.round = 1;
+});

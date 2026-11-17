@@ -43,7 +43,7 @@ export function installFoundryStubs({ gm = true } = {}) {
             if (q?.length) return q.shift();
             return globalThis.__dialogAnswer ?? null;
           },
-          confirm: async () => true
+          confirm: async (o) => { globalThis.__lastConfirm = o; return globalThis.__confirmAnswer ?? true; }
         }
       },
       handlebars: { loadTemplates: () => {} }
@@ -182,12 +182,12 @@ export function buildDumpWorld(stubs) {
       for (const [k, v] of Object.entries(patch)) stubs.setPath(combat, k, v);
     }
   };
-  for (const c of combatants) { c.parent = combat; scene.tokens.set(c.token.id, { ...c.token, actor: c.actor, name: c.name }); }
+  for (const c of combatants) { c.parent = combat; Object.assign(c.token, { actor: c.actor, name: c.name }); scene.tokens.set(c.token.id, c.token); }
   // Une monture posée sur la scène, hors combat
   const horse = actor("Cheval");
   horse.system.pace = { base: "ground", ground: 12, default: 12 };
   horse.system.fatigue = { value: 0, max: 2 };
-  scene.tokens.set("tHorse", { id: "tHorse", name: "Cheval", actor: horse, x: 0, y: 0, width: 2, height: 2 });
+  scene.tokens.set("tHorse", { id: "tHorse", name: "Cheval", actor: horse, x: -1000, y: -1000, width: 2, height: 2 });
   game.combats.set(combat.id, combat);
   game.combat = combat;
   canvas.scene = scene;

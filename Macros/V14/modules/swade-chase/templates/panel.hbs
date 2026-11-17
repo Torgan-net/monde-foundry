@@ -70,6 +70,7 @@
           </div>
         </div>
 
+        {{#if unit.readOnly}}<div class="sc-banner sc-info"><i class="fa-solid fa-eye"></i> Lecture seule : vous observez ce participant sans pouvoir agir.</div>{{/if}}
         {{#if unit.complication}}<div class="sc-banner sc-warn"><i class="fa-solid fa-triangle-exclamation"></i> {{unit.complication}}</div>{{/if}}
         {{#with unit.complicationBlock as |cb|}}
           <section class="sc-complication-box">
@@ -78,7 +79,7 @@
               <p>Le jeton n'est pas rattaché à la piste : sur quelle carte de poursuite est-il ?</p>
               <div class="sc-buttons">{{#each cb.suits}}<button type="button" data-action="compSuit" data-suit="{{value}}" {{#unless ../cb.canAct}}disabled{{/unless}}>{{label}}</button>{{/each}}</div>
             {{else}}
-              <p>Carte de poursuite <b class="sc-card {{#if cb.red}}sc-red{{/if}}">{{cb.symbol}}</b> {{cb.suitLabel}} : jet de <strong>{{cb.skill}}</strong> à <strong>{{cb.total}}</strong> <span class="sc-muted">({{cb.modsText}})</span>.</p>
+              <p>Carte de poursuite <b class="sc-card {{#if cb.red}}sc-red{{/if}}">{{cb.symbol}}</b> {{cb.suitLabel}} : jet de <strong>{{cb.skill}}</strong>{{{cb.roller}}} <strong>{{cb.total}}</strong>{{#if cb.modsText}} <span class="sc-muted">({{cb.modsText}})</span>{{/if}}, en action gratuite.</p>
               <p class="sc-reason">{{cb.failureText}}</p>
               {{#if cb.canAct}}
                 <div class="sc-buttons">
@@ -175,6 +176,13 @@
               {{/if}}
             </div>
             <button type="button" data-action="resetTurn"><i class="fa-solid fa-rotate-left"></i> Réinitialiser le tour de ce participant</button>
+          </section>
+          <section class="sc-config-box">
+            <h3>Panneau des joueurs <span class="sc-help-inline" data-tooltip="Rouvre le panneau de poursuite chez un joueur qui l'a fermé. Sans effet s'il est déjà ouvert."><i class="fa-solid fa-circle-question"></i></span></h3>
+            <div class="sc-buttons">
+              <button type="button" data-action="reopenFor"><i class="fa-solid fa-users"></i> Rouvrir chez tous</button>
+              {{#each players}}<button type="button" data-action="reopenFor" data-user-id="{{id}}"><i class="fa-solid fa-user"></i> {{name}}</button>{{/each}}
+            </div>
           </section>
           <section class="sc-config-box">
             <h3>Poursuite</h3>

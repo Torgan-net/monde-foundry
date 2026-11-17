@@ -86,3 +86,13 @@ test("véhicule touché : Bousculé + message de jet de contrôle ; Échec → P
   assert.match(msg.content, /Pertes de contrôle tirée \(7\)/);
   g4.actor.type = "character";
 });
+
+test("véhicule touché : phrase correcte (pas « est dégâts… »)", async () => {
+  const g1 = cb("cG1");
+  g1.actor.type = "vehicle";
+  globalThis.__dialogQueue = ["m0"];
+  await (await import("../../scripts/services/socket.js")).asGM("damageBump", { combatId: "combat1", combatantId: "cG1", control: true, vehicle: true, cause: "x" });
+  assert.doesNotMatch(globalThis.__lastDialog.content, /est dégâts/);
+  assert.match(globalThis.__lastDialog.content, /subit des dégâts au moins égaux à sa Résistance/);
+  g1.actor.type = "character";
+});

@@ -45,6 +45,13 @@ export async function broadcast(name, payload = {}) {
 }
 
 /** Le demandeur peut-il agir pour ce combattant ? */
+/** Le demandeur peut-il voir ce combattant (droit Observateur ou mieux) ? Lecture seule. */
+export function canObserve(user, combatant) {
+  if (!user || !combatant) return false;
+  if (user.isGM) return true;
+  return !!combatant.actor?.testUserPermission?.(user, "OBSERVER");
+}
+
 export function canControl(user, combatant) {
   if (!user || !combatant) return false;
   if (user.isGM) return true;

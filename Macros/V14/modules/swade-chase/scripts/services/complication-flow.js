@@ -11,10 +11,21 @@ import { computeChaseView, chaseCardOf } from "./chase.js";
 import { asGM, broadcast, canControl } from "./socket.js";
 import { rollManeuver, readRoll } from "./rolls.js";
 import { complicationConsequenceGM } from "./complication-card.js";
+import { pilotName } from "./mount.js";
+import { driverWord, VEHICLE_MODES } from "../rules/complication.js";
+import { modsPhrase } from "../rules/wording.js";
 import { escapeHTML, modsText, modsTotal, signed } from "./util.js";
 
 const SUITS = ["spades", "hearts", "diamonds", "clubs", "joker"];
 const isActiveGM = () => !!game.users.activeGM?.isSelf;
+
+/** « du pilote X » pour un véhicule (swade-vehicle), sinon rien. */
+function rollerPhrase(combatant, mode) {
+  if (combatant?.actor?.type !== "vehicle") return "";
+  const name = pilotName(combatant.actor);
+  const word = VEHICLE_MODES.includes(mode) ? driverWord(mode) : "conducteur";
+  return name ? ` du ${word} ${escapeHTML(name)}` : ` du ${word}`;
+}
 
 /** Complication en attente pour ce round ? */
 export function pendingComplication(unit, round) {
@@ -36,12 +47,13 @@ export async function startComplicationGM(combat) {
   const c = { round: combat.round, suit: chaseCard?.suit ?? null, state: "pending", suggested: null, result: null };
   await writeUnit(combat, current.id, { complication: c, complicationRound: combat.round });
 
-  const comp = complicationFor(c.suit, { cityStreets: view.chase.cityStreets });
+  const comp = complicationFor(c.suit, { cityStreets: view.chase.cityStreets, mode: u.unit.mode, rooftops: view.chase.rooftops });
   const skill = MODES[u.unit.mode]?.skill ?? "Manœuvre";
+  const who = rollerPhrase(current, u.unit.mode);
   const where = chaseCard ? `carte de poursuite <strong>${chaseCardLabel(chaseCard)}</strong> (${SUIT_LABELS[chaseCard.suit]})` : "carte de poursuite à préciser";
   await ChatMessage.create({
     content: `<div class="sc-chat"><header class="sc-chat-title"><span class="sc-suit sc-suit-clubs">♣</span> Complication : ${escapeHTML(current.name)}</header>
-      <p>Carte d'action <strong>${escapeHTML(u.actionCard.label)}</strong>, ${where}.${comp ? ` Jet de ${escapeHTML(skill)} à ${signed(modsTotal(comp.mods))} avant d'agir. ${escapeHTML(comp.failureText)}` : ""}</p></div>`,
+      <p>Carte d'action <strong>${escapeHTML(u.actionCard.label)}</strong>, ${where}.${comp ? ` Avant d'agir : jet de ${escapeHTML(skill)}${who} ${modsPhrase(comp.mods)}, en action gratuite. ${escapeHTML(comp.failureText)}` : ""}</p></div>`,
     speaker: ChatMessage.getSpeaker({ actor: current.actor, token: current.token })
   });
 
@@ -59,7 +71,7 @@ export async function rollUnitComplication(combat, combatantId) {
   const c = pendingComplication(unit, combat.round);
   if (!c?.suit) return;
   const chase = combat.flags?.["swade-chase"]?.chase ?? {};
-  const comp = complicationFor(c.suit, { cityStreets: !!chase.cityStreets });
+  const comp = complicationFor(c.suit, { cityStreets: !!chase.cityStreets, mode: unit.mode });
   const res = await rollManeuver(combatant, unit.mode, comp.mods, `Complication (${SUIT_LABELS[c.suit]})`);
   const outcome = traitOutcome(readRoll(res?.roll));
   if (outcome) {
@@ -105,12 +117,13 @@ export function complicationBlock(combat, combatant, unit, canAct) {
   const c = pendingComplication(unit, combat.round);
   if (!c) return null;
   const chase = combat.flags?.["swade-chase"]?.chase ?? {};
-  const comp = c.suit ? complicationFor(c.suit, { cityStreets: !!chase.cityStreets }) : null;
+  const comp = c.suit ? complicationFor(c.suit, { cityStreets: !!chase.cityStreets, mode: unit.mode, rooftops: !!chase.rooftops }) : null;
   return {
     suit: c.suit, suitLabel: c.suit ? SUIT_LABELS[c.suit] : null, symbol: c.suit ? SUIT_SYMBOLS[c.suit] : null,
     red: c.suit === "hearts" || c.suit === "diamonds",
-    total: comp ? signed(modsTotal(comp.mods)) : null,
-    modsText: comp ? modsText(comp.mods) : "",
+    total: comp ? modsPhrase(comp.mods) : null,
+    roller: rollerPhrase(combatant, unit.mode),
+    modsText: comp?.mods.length ? modsText(comp.mods) : "",
     failureText: comp?.failureText ?? "",
     skill: MODES[unit.mode]?.skill ?? "Manœuvre",
     needSuit: !c.suit,

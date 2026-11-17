@@ -2,7 +2,7 @@
   "id": "swade-chase",
   "title": "SWADE – Poursuites",
   "description": "Aide aux poursuites SWADE (VF) : actions possibles avec explications, Complications au trèfle, lecture de la piste posée avec Complete Card Management.",
-  "version": "0.4.7",
+  "version": "0.4.10",
   "authors": [{ "name": "Arnok" }],
   "compatibility": { "minimum": "14", "verified": "14" },
   "esmodules": ["scripts/main.js"],

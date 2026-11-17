@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.10 — 17/11/2026
+
+- Relecture des messages pour les véhicules :
+  - annonce et bloc de Complication : nom du pilote (swade-vehicle), « sans modificateur » au lieu de « à 0 », conséquence d'un Échec critique précisée selon le mode (Perte de contrôle, dé pair / impair, table 1d6 monté) ;
+  - Échec critique et jet de contrôle : « pilote » (avion, vaisseau), « barreur » (bateau) ou « conducteur » (autre véhicule) ;
+  - véhicule touché : « subit des dégâts au moins égaux à sa Résistance » (et non « est dégâts… ») ; Bousculé par le MJ et monture touchée reformulés ;
+  - Se dérober et Stabiliser : texte propre au véhicule (véhicule et passagers), au cavalier ou au personnage à pied ;
+  - « participant » au lieu de « personnage » dans les messages de droits.
+
+## 0.4.9 — 17/11/2026
+
+- Droit Observateur : un joueur voit dans le panneau les participants (personnages ou véhicules) qu'il observe, en lecture seule — mention « lecture seule » dans la liste, bandeau, aucun bouton d'action, de jet, de nombre d'actions ni de fin de tour. Les écritures restent réservées au propriétaire et au MJ.
+
+## 0.4.8 — 17/11/2026
+
+- Réouverture du panneau par le MJ (onglet Réglages, « Panneau des joueurs ») : chez tous les joueurs ou chez un joueur précis ; rouvert seulement là où il était fermé, sans tenir compte du réglage d'ouverture automatique.
+- Déplacement automatique : le jeton ne se pose plus sur un autre jeton ; il est décalé d'une case, de préférence perpendiculairement à la piste pour rester sur la même carte (taille du jeton prise en compte).
+- Dépassement de la dernière carte de la piste : le MJ peut mettre fin à la poursuite ; sinon, message lui demandant d'ajouter des cartes.
+
 ## 0.4.7 — 16/11/2026
 
 - Abandon de la règle de table « une manœuvre en action par tour » (option retirée) : on suit le livre, les manœuvres peuvent faire partie d'actions multiples ; seules restent les limites propres à chaque manœuvre (Changer de position une fois par tour, Se dérober une fois par round, Fuir exclusive…).

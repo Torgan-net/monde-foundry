@@ -1,6 +1,6 @@
 # API de swade-chase
 
-Version de l'API : **1** (`api.version`). Module : `swade-chase` 0.4.7.
+Version de l'API : **1** (`api.version`). Module : `swade-chase` 0.4.10.
 
 ```js
 const api = game.modules.get("swade-chase")?.api;

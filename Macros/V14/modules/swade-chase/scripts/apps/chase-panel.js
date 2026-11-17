@@ -9,8 +9,9 @@ import { complicationFor } from "../rules/complication.js";
 import { getChase, isChaseActive } from "../services/state.js";
 import { computeChaseView, actionsFor, turnOf, autoSpeedFor } from "../services/chase.js";
 import { minPlanned, multiActionMod, MAX_ACTIONS, turnDone, plannedLocked, actionsSpent, remainingActions, currentTurn } from "../rules/turn.js";
-import { asGM, canControl } from "../services/socket.js";
+import { asGM, canControl, canObserve } from "../services/socket.js";
 import { startChase, endChase, runActionRoll, runActionApply, endTurn } from "../services/handlers.js";
+import { broadcast } from "../services/socket.js";
 import { readSceneTrack } from "../services/track-reader.js";
 import { signed, modsTotal } from "../services/util.js";
 import { mountCandidates } from "../services/mount.js";
@@ -39,6 +40,7 @@ export class ChasePanel extends HandlebarsApplicationMixin(ApplicationV2) {
       resetTurn: ChasePanel.onResetTurn,
       endTurn: ChasePanel.onEndTurn,
       endTurnEarly: ChasePanel.onEndTurnEarly,
+      reopenFor: ChasePanel.onReopenFor,
       gmBump: ChasePanel.onGmBump,
       compRoll: ChasePanel.onCompRoll,
       compResolve: ChasePanel.onCompResolve,
@@ -100,7 +102,7 @@ export class ChasePanel extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!isChaseActive(combat)) return { ...base, inactive: true, config, trackCount, started: combat.started };
 
     const view = computeChaseView(combat);
-    const visible = [...view.units.values()].filter((u) => isGM || canControl(game.user, u.combatant));
+    const visible = [...view.units.values()].filter((u) => isGM || canObserve(game.user, u.combatant));
     const active = combat.combatant?.id;
     // Le tour a changé : on suit le nouveau participant actif (s'il est visible pour cet utilisateur).
     const turnKey = `${combat.id}:${combat.round}:${active}`;
@@ -116,12 +118,13 @@ export class ChasePanel extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     const units = visible.map((u) => ({
       id: u.combatant.id,
-      label: `${u.combatant.name}${u.combatant.id === active ? " (son tour)" : ""}${u.unit.status !== "in" ? ` — ${STATUS[u.unit.status]}` : ""}`,
+      label: `${u.combatant.name}${u.combatant.id === active ? " (son tour)" : ""}${!canControl(game.user, u.combatant) ? " (lecture seule)" : ""}${u.unit.status !== "in" ? ` — ${STATUS[u.unit.status]}` : ""}`,
       selected: u.combatant.id === this.selectedId
     }));
 
     const ctx = {
       ...base, active: true, config,
+      players: isGM ? game.users.filter((u) => !u.isGM && u.active).map((u) => ({ id: u.id, name: u.name })) : [],
       typeLabel: CHASE_TYPES[chase.type]?.label ?? "", interval: view.chase.interval,
       trackCount: view.track.length,
       trackWarning: !view.track.length
@@ -240,6 +243,7 @@ export class ChasePanel extends HandlebarsApplicationMixin(ApplicationV2) {
         offTrack: !me.loc.onTrack ? `Jeton ${OFF_TRACK_REASONS[me.loc.reason] ?? "hors piste"}.` : null,
         complication, complicationBlock: compBlock,
         canAct,
+        readOnly: !canAct,
         modes: [
           { value: "auto", label: `Automatique : ${MODES[me.unit.mode]?.label ?? ""}`, selected: me.unit.modeSetting === "auto" },
           ...Object.entries(MODES).map(([value, m]) => ({ value, label: `${m.label} (${m.skill})`, selected: me.unit.modeSetting === value }))
@@ -319,7 +323,7 @@ export class ChasePanel extends HandlebarsApplicationMixin(ApplicationV2) {
     const control = target.dataset.control === "1";
     await asGM("damageBump", {
       combatId: combat.id, combatantId: this.selectedId, control,
-      cause: control ? "touché (dégâts au moins égaux à sa Résistance)" : "Bousculé par le MJ"
+      cause: control ? "vehicle" : "manual"
     });
   }
 
@@ -359,6 +363,14 @@ export class ChasePanel extends HandlebarsApplicationMixin(ApplicationV2) {
       if (!ok) return;
     }
     await endTurn(combat, this.selectedId);
+  }
+
+  /** MJ : rouvre le panneau chez un joueur (ou tous) s'il l'a fermé ; rien s'il est déjà ouvert. */
+  static async onReopenFor(event, target) {
+    if (!game.user.isGM) return;
+    const id = target.dataset.userId;
+    await broadcast("forceOpenPanel", { userIds: id ? [id] : null });
+    ui.notifications.info(id ? `Panneau rouvert chez ${game.users.get(id)?.name ?? "le joueur"} (s'il était fermé).` : "Panneau rouvert chez les joueurs qui l'avaient fermé.");
   }
 
   static async onEndTurn() {

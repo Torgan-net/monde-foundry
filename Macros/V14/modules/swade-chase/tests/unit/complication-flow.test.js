@@ -84,3 +84,22 @@ test("jeton hors piste : enseigne demandée (choix du MJ ou du joueur), puis jet
   await mods.socket.asGM("unitComplicationPatch", { combatId: "combat1", combatantId: "cKa", patch: { suit: "diamonds" } });
   assert.equal(unit("cKa").complication.suit, "diamonds");
 });
+
+test("véhicule : l'annonce nomme le pilote et la Perte de contrôle", async () => {
+  game.modules.set("swade-vehicle", { id: "swade-vehicle", active: true, api: {
+    getPilot: () => ({ name: "Brent Hardcastle" }), getManeuverSkill: () => ({ key: "Driving", label: "Conduite" }),
+    rollManeuver: async () => ({ total: 5 })
+  } });
+  const g4 = cb("cG4");
+  g4.actor.type = "vehicle";
+  g4.system = { cardValue: 2, suitValue: 1, hasJoker: false, cardString: "2♣" };
+  world.combat.combatant = g4;
+  world.combat.round = 3;
+  await mods.flow.startComplicationGM(world.combat);
+  const msg = stubs.created.at(-1).content;
+  assert.match(msg, /Brent Hardcastle/);
+  assert.match(msg, /sans modificateur|à [−+]\d/);
+  assert.doesNotMatch(msg, / à 0 /);
+  assert.match(msg, /Perte de contrôle/);
+  g4.actor.type = "character";
+});

@@ -1,5 +1,5 @@
 export const MODULE_ID = "swade-chase";
-export const VERSION = "0.4.7";
+export const VERSION = "0.4.10";
 
 /** Mode de déplacement → compétence de Manœuvre (swid SWADE + nom VF). */
 export const MODES = Object.freeze({

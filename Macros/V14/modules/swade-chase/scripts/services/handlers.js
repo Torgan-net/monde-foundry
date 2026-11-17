@@ -21,7 +21,7 @@ import { escapeHTML, modsText, signed } from "./util.js";
 
 const MARK_KEYS = new Set(["changedPosition", "liftedFoot", "evaded"]);
 
-export function registerHandlers({ openPanel }) {
+export function registerHandlers({ openPanel, isPanelOpen = () => false }) {
   onGM("setChase", async ({ combatId, patch }, user) => {
     if (!user?.isGM) return;
     const combat = game.combats.get(combatId);
@@ -148,6 +148,13 @@ export function registerHandlers({ openPanel }) {
 
   onAll("openPanel", () => {
     if (game.settings.get(MODULE_ID, "autoOpen")) openPanel();
+  });
+
+  // Réouverture forcée par le MJ : seulement si le panneau est fermé chez l'utilisateur visé.
+  onAll("forceOpenPanel", ({ userIds }) => {
+    if (Array.isArray(userIds) && !userIds.includes(game.user.id)) return;
+    if (isPanelOpen()) return;
+    openPanel();
   });
 }
 
@@ -335,16 +342,23 @@ export async function runActionApply(combat, combatantId, actionId, applyKey) {
       await asGM("moveUnit", { combatId: combat.id, combatantId, steps, why: "lève le pied" });
       return consume(combat, combatantId, action, apply.cost);
     }
-    case "evadeFree":
+    case "evadeFree": case "evadeAction": {
       await asGM("markUnit", { combatId: combat.id, combatantId, key: "evaded" });
-      return note(me.combatant, `<strong>${name}</strong> se dérobe (action gratuite) : −2 aux attaques contre lui, son véhicule et ses passagers, et −2 à leurs propres attaques, jusqu'à son prochain tour.`);
-    case "evadeAction":
-      await asGM("markUnit", { combatId: combat.id, combatantId, key: "evaded" });
-      return note(me.combatant, `<strong>${name}</strong> se dérobe (action) : −4 aux attaques contre lui, son véhicule et ses passagers, et −4 à leurs propres attaques, jusqu'à son prochain tour.`);
+      const v = applyKey === "evadeFree" ? "−2" : "−4";
+      const how = applyKey === "evadeFree" ? "action gratuite" : "action";
+      const who = me.isVehicle
+        ? `les attaques contre le véhicule et ses passagers sont à ${v}, et celles du véhicule et de ses occupants aussi`
+        : (me.unit.mode === "mounted"
+          ? `les attaques contre lui et sa monture sont à ${v}, et ses propres attaques aussi`
+          : `les attaques contre lui sont à ${v}, et ses propres attaques aussi`);
+      return note(me.combatant, `<strong>${name}</strong> se dérobe (${how}) : ${who}, jusqu'à son prochain tour.`);
+    }
     case "hold":
       await asGM("setHold", { combatId: combat.id, combatantId });
       return note(me.combatant, `<strong>${name}</strong> passe En attente : il pourra interrompre un adversaire (jet opposé ${me.unit.mode === "mounted" ? "d'Équitation" : (me.unit.mode === "foot" ? "d'Athlétisme" : "choisi par le MJ")}).`);
     case "steady":
-      return note(me.combatant, `<strong>${name}</strong> stabilise : ignore Plateforme instable et Course ; les attaques contre lui sont à +2 jusqu'à son prochain tour.`);
+      return note(me.combatant, me.isVehicle
+        ? `<strong>${name}</strong> se stabilise : le véhicule et ses occupants ignorent Plateforme instable et Course ; les attaques contre eux sont à +2 jusqu'à son prochain tour.`
+        : `<strong>${name}</strong> se stabilise : il ignore Plateforme instable et Course ; les attaques contre lui sont à +2 jusqu'à son prochain tour.`);
   }
 }

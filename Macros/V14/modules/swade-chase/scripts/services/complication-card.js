@@ -5,12 +5,12 @@
  */
 import { MODULE_ID, MODES } from "../constants.js";
 import { SUIT_LABELS, SUIT_SYMBOLS } from "../rules/cards.js";
-import { complicationFor, criticalFailureEffect, needsCriticalDie, traitOutcome } from "../rules/complication.js";
+import { complicationFor, criticalFailureEffect, needsCriticalDie, traitOutcome, driverWord } from "../rules/complication.js";
 import { escapeHTML, modsText, modsTotal, signed } from "./util.js";
 import { asGM, canControl } from "./socket.js";
 import { rollManeuver, readRoll } from "./rolls.js";
 import { moveUnitGM, askMove, bumpChoices } from "./movement.js";
-import { mountOf, addFatigue } from "./mount.js";
+import { mountOf, addFatigue, pilotName } from "./mount.js";
 
 const help = (text) => `<span class="sc-help-inline" data-tooltip="${escapeHTML(text)}"><i class="fa-solid fa-circle-question"></i></span>`;
 
@@ -28,7 +28,7 @@ function resolveButtons(d) {
 function renderControlCard(d) {
   const lines = [
     `<header class="sc-chat-title"><i class="fa-solid fa-car-burst"></i> Perte de contrôle ? ${escapeHTML(d.name)}</header>`,
-    `<p>Dégâts au moins égaux à la Résistance du véhicule : le conducteur doit réussir un jet de Manœuvre, sinon il subit une <strong>Perte de contrôle</strong> (table p. 128).</p>`
+    `<p>Dégâts au moins égaux à la Résistance du véhicule : le ${driverWord(d.mode)}${d.pilot ? ` (${escapeHTML(d.pilot)})` : ""} doit réussir un jet de Manœuvre, sinon c'est une <strong>Perte de contrôle</strong> (table p. 128).</p>`
   ];
   lines.push(d.state === "resolved" ? `<div class="sc-chat-result">${d.result ?? ""}</div>` : resolveButtons(d));
   return `<div class="sc-chat sc-complication">${lines.join("")}</div>`;
@@ -89,7 +89,7 @@ export async function postComplication({ combat, combatant, unit, actionCard, ch
 export async function postControlCheck({ combat, combatant, unit }) {
   const data = {
     kind: "control", combatId: combat.id, combatantId: combatant.id, round: combat.round,
-    name: combatant.name, mode: unit.mode, state: "pending", suggested: null, result: null
+    name: combatant.name, mode: unit.mode, pilot: pilotName(combatant.actor), state: "pending", suggested: null, result: null
   };
   return ChatMessage.create({
     content: renderComplicationCard(data),
@@ -127,7 +127,7 @@ export function bindComplicationCard(message, html) {
   const combatant = findCombatant(d);
   const allowed = canControl(game.user, combatant);
   for (const btn of html.querySelectorAll("[data-sc]")) {
-    if (!allowed) { btn.disabled = true; btn.dataset.tooltip = "Réservé au joueur du personnage et au MJ."; continue; }
+    if (!allowed) { btn.disabled = true; btn.dataset.tooltip = "Réservé au joueur de ce participant et au MJ."; continue; }
     btn.addEventListener("click", async (ev) => {
       ev.preventDefault();
       btn.disabled = true;
@@ -194,7 +194,7 @@ export async function resolveComplication({ messageId, outcome }, user) {
   if (!canControl(user, combatant)) return;
   if (d.kind === "control") {
     if (outcome === "success") {
-      return updateCard(message, { state: "resolved", result: `<p class="sc-ok-text"><i class="fa-solid fa-check"></i> Le conducteur garde le contrôle.</p>` });
+      return updateCard(message, { state: "resolved", result: `<p class="sc-ok-text"><i class="fa-solid fa-check"></i> Le ${driverWord(d.mode)} garde le contrôle.</p>` });
     }
     const applied = await applyCriticalEffect({ outOfControl: true }, combatant);
     return updateCard(message, { state: "resolved", result: `<p class="sc-ko-text"><i class="fa-solid fa-car-burst"></i> <strong>Perte de contrôle</strong>.</p><p class="sc-applied">${applied}</p>` });
@@ -210,7 +210,7 @@ export async function resolveComplication({ messageId, outcome }, user) {
  * @returns {Promise<string>} compte rendu HTML
  */
 export async function complicationConsequenceGM({ combatId, combatantId, combatant, name, mode, suit, cityStreets, rooftops, outcome }) {
-  const comp = complicationFor(suit, { cityStreets });
+  const comp = complicationFor(suit, { cityStreets, mode, rooftops });
   if (outcome === "success" || !comp) {
     return `<p class="sc-ok-text"><i class="fa-solid fa-check"></i> Complication surmontée.</p>`;
   }

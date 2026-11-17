@@ -33,3 +33,11 @@ export async function addFatigue(actor, who = "") {
   await actor.update({ "system.fatigue.value": next });
   return `Fatigue appliquée${who} : ${next} / ${max}.`;
 }
+
+/** Pilote d'un véhicule selon swade-vehicle (nom), sinon null. */
+export function pilotName(actor) {
+  if (actor?.type !== "vehicle") return null;
+  const mod = game.modules?.get?.("swade-vehicle");
+  const api = mod?.active ? mod.api : null;
+  try { return api?.getPilot?.(actor)?.name ?? null; } catch { return null; }
+}

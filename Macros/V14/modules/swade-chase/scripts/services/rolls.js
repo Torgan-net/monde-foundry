@@ -44,7 +44,7 @@ async function doRoll(combatant, mode, mods, title, multiAction) {
   }
   const actor = combatant?.actor;
   if (!actor) { ui.notifications.warn("Ce combattant n'a pas d'acteur."); return null; }
-  if (!actor.isOwner) { ui.notifications.warn("Seul le propriétaire du personnage (ou le MJ) peut lancer ce jet."); return null; }
+  if (!actor.isOwner) { ui.notifications.warn("Seul le propriétaire de ce participant (ou le MJ) peut lancer ce jet."); return null; }
 
   const launcher = game.settings.get(MODULE_ID, "launcher");
   const st = (launcher === "swade-tools" || launcher === "auto") ? rollerMode() : "native";

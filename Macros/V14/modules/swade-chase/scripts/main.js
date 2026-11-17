@@ -39,7 +39,7 @@ Hooks.once("init", () => {
 
 Hooks.once("ready", () => {
   initSocket();
-  registerHandlers({ openPanel: () => ChasePanel.open() });
+  registerHandlers({ openPanel: () => ChasePanel.open(), isPanelOpen: () => !!ChasePanel.instance?.rendered });
   registerDamageWatch();
 
   const api = {
