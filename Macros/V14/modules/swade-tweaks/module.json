@@ -1,8 +1,8 @@
 {
   "id": "swade-tweaks",
   "title": "SWADE Tweaks",
-  "description": "Groupes du Combat Tracker SWADE : nom et image du meneur, icône distinctive.",
-  "version": "1.1.0",
+  "description": "Groupes du Combat Tracker SWADE : nom et image du meneur, icône distinctive ; redéfinition du combattant actif par clic droit.",
+  "version": "1.2.1",
   "compatibility": { "minimum": "14", "verified": "14" },
   "relationships": {
     "systems": [{ "id": "swade", "type": "system", "compatibility": { "minimum": "6.0" } }]

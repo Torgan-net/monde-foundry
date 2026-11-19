@@ -33,6 +33,7 @@ export function installFoundryStubs({ isGM = true } = {}) {
 
   const modules = new Map([["swade-tweaks", { id: "swade-tweaks" }]]);
   globalThis.game = {
+    user: { isGM },
     users: { activeGM: { isSelf: isGM } },
     modules,
     combats: []
@@ -85,4 +86,42 @@ export function makeCombat({ combatants = [], groups = [] }) {
   // Les Collections Foundry sont itérables sur leurs valeurs
   combat.groups[Symbol.iterator] = function* () { yield* combat.groups.values(); };
   return combat;
+}
+
+/**
+ * Combat lancé, avec ordre de tour et position du curseur.
+ * Chaque écriture sur le combat est enregistrée dans combat.writes.
+ */
+export function makeStartedCombat({ combatants = [], groups = [], order, turn = 0, started = true }) {
+  const combat = makeCombat({ combatants, groups });
+  combat.started = started;
+  combat.turn = turn;
+  combat.turns = (order ?? combatants.map((c) => c.id)).map((id) => combat.combatants.get(id));
+  combat.writes = [];
+  combat.update = async function (changes, options) {
+    this.writes.push({ changes, options });
+    Object.assign(this, changes);
+    return this;
+  };
+  return combat;
+}
+
+/** Élément du suivi de combat factice : ligne de combattant ou en-tête de groupe */
+export function makeRow({ combatantId = null, groupId = null, nestedGroupId = null } = {}) {
+  const row = {
+    dataset: {
+      ...(combatantId ? { combatantId } : {}),
+      ...(groupId ? { groupId } : {})
+    },
+    closest(selector) {
+      if (selector === "[data-combatant-id]") return combatantId ? row : null;
+      if (selector === "[data-group-id]") return groupId ? row : null;
+      return null;
+    },
+    querySelector(selector) {
+      if (selector === "[data-group-id]" && nestedGroupId) return { dataset: { groupId: nestedGroupId } };
+      return null;
+    }
+  };
+  return row;
 }

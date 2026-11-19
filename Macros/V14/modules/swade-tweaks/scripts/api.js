@@ -1,5 +1,7 @@
 import { API_VERSION } from "./constants.js";
 import { getLeader, groupOf, syncGroup, syncAllGroups } from "./services/groups.js";
+import { canSetActive, setActiveCombatant } from "./services/turns.js";
+import { computeTurnChange } from "./rules/turn-order.js";
 import { groupLabel, isAutoName, computeGroupUpdates } from "./rules/group-label.js";
 
 /** API publique : game.modules.get("swade-tweaks").api (voir API.md) */
@@ -10,6 +12,8 @@ export function buildApi() {
     groupOf,
     syncGroup,
     syncAllGroups,
-    rules: Object.freeze({ groupLabel, isAutoName, computeGroupUpdates })
+    canSetActive,
+    setActiveCombatant,
+    rules: Object.freeze({ groupLabel, isAutoName, computeGroupUpdates, computeTurnChange })
   });
 }

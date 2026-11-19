@@ -57,3 +57,22 @@ test("updateCombatant : ignoré si ni groupe, ni nom, ni image ne changent", asy
   await handler("on", "updateCombatant")(elharn, { name: "Elharn" }, {});
   assert.equal(group.writes.length, 1);
 });
+
+test("menus contextuels : l'entrée est ajoutée aux combattants et aux groupes", () => {
+  for (const name of ["getCombatantContextOptions", "getCombatantGroupContextOptions"]) {
+    const items = [];
+    handler("on", name)({ viewed: null }, items);
+    assert.equal(items.length, 1, `hook ${name}`);
+    handler("on", name)({ viewed: null }, items);
+    assert.equal(items.length, 1, `hook ${name} : pas de doublon`);
+    assert.equal(items[0].label, "Définir comme combattant actif");
+  }
+});
+
+test("ready : l'API expose setActiveCombatant", () => {
+  assert.equal(typeof game.modules.get("swade-tweaks").api.setActiveCombatant, "function");
+});
+
+test("setup : enregistré pour modifier la classe du suivi de combat", () => {
+  assert.ok(handler("once", "setup"));
+});
