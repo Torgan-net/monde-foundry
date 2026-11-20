@@ -76,3 +76,15 @@ test("ready : l'API expose setActiveCombatant", () => {
 test("setup : enregistré pour modifier la classe du suivi de combat", () => {
   assert.ok(handler("once", "setup"));
 });
+
+test("init : enregistre les réglages d'affichage (portée client)", () => {
+  handler("once", "init")();
+  const def = game.settings.registered.get("swade-tweaks.fixStatusColors");
+  assert.ok(def);
+  assert.equal(def.scope, "client");
+});
+
+test("ready : applique les corrections d'affichage", () => {
+  handler("once", "ready")();
+  assert.ok(document.body.classList.contains("swade-tweaks--status-colors"));
+});

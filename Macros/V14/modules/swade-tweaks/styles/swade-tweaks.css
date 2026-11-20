@@ -30,3 +30,65 @@
   pointer-events: none;
   z-index: 1;
 }
+
+/* =====================================================================
+   Corrections d'affichage (1.3.0) — chaque bloc n'agit que si sa classe
+   est posée sur <body> par le réglage client correspondant.
+   ===================================================================== */
+
+/* --- HUD des états, Monk's Little Details : cadre à la hauteur du contenu --- */
+body.swade-tweaks--mld-height #token-hud.monks-little-details .status-effects {
+  height: auto !important;
+  max-height: none !important;
+  bottom: auto !important;
+}
+
+/* --- HUD des états, Monk's Little Details : noms lisibles --- */
+body.swade-tweaks--mld-names #token-hud.monks-little-details .status-effects .effect-name {
+  opacity: 1 !important;
+}
+body.swade-tweaks--mld-names #hud.theme-light #token-hud.monks-little-details .status-effects .effect-name {
+  color: #222 !important;
+}
+
+/* --- HUD des états, Monk's Little Details : icônes nettes et surbrillance --- */
+body.swade-tweaks--mld-highlight #token-hud.monks-little-details .status-effects img.effect-control {
+  opacity: 1 !important;
+  border: 1px solid transparent !important;
+  border-radius: 4px;
+  transition: background-color .1s;
+}
+body.swade-tweaks--mld-highlight #token-hud.monks-little-details .status-effects img.effect-control:hover {
+  background-color: rgba(0, 0, 0, .12) !important;
+}
+body.swade-tweaks--mld-highlight #hud:not(.theme-light) #token-hud.monks-little-details .status-effects img.effect-control:hover {
+  background-color: rgba(255, 255, 255, .15) !important;
+}
+body.swade-tweaks--mld-highlight #token-hud.monks-little-details .status-effects img.effect-control.active {
+  filter: none !important;             /* remplace le filtre sépia de « surligner l'image » */
+  background-color: rgba(255, 100, 0, .3) !important;
+  border: 2px solid #ff6400 !important;
+}
+body.swade-tweaks--mld-highlight #token-hud.monks-little-details .status-effects img.effect-control.active:hover {
+  background-color: rgba(255, 100, 0, .45) !important;
+}
+body.swade-tweaks--mld-highlight #token-hud.monks-little-details .status-effects .effect-control.active + .effect-name {
+  color: #b34400 !important;
+  font-weight: bold;
+}
+body.swade-tweaks--mld-highlight #hud:not(.theme-light) #token-hud.monks-little-details .status-effects .effect-control.active + .effect-name {
+  color: #ff8c40 !important;
+}
+
+/* --- Icônes d'état : couleurs d'origine (HUD et suivi de combat) ---
+   L'état actif du HUD garde son filtre (surbrillance de Monk's Little Details),
+   sauf si la surbrillance de swade-tweaks le remplace. Le crâne blanc reste inversé. */
+body.swade-tweaks--status-colors #token-hud .status-effects img.effect-control:not(.active),
+body.swade-tweaks--status-colors img.token-effect:not([src$="skull.svg"]) {
+  filter: none !important;
+}
+
+/* --- Suivi de combat : icônes d'état opaques --- */
+body.swade-tweaks--tracker-opacity img.token-effect {
+  opacity: 1 !important;
+}

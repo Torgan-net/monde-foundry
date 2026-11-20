@@ -4,6 +4,6 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/unit/*.test.js",
-    "check": "node --check scripts/main.js && node --check scripts/api.js && node --check scripts/constants.js && node --check scripts/rules/group-label.js && node --check scripts/services/groups.js && node --check scripts/rules/turn-order.js && node --check scripts/services/turns.js && node --check tests/quench/groups.quench.js && node --check tests/quench/turns.quench.js"
+    "check": "node --check scripts/main.js && node --check scripts/api.js && node --check scripts/constants.js && node --check scripts/rules/group-label.js && node --check scripts/services/groups.js && node --check scripts/rules/turn-order.js && node --check scripts/services/turns.js && node --check scripts/rules/hud-clamp.js && node --check scripts/rules/hud-fixes.js && node --check scripts/services/hud-fixes.js && node --check tests/quench/groups.quench.js && node --check tests/quench/turns.quench.js && node --check tests/quench/hud.quench.js"
   }
 }

@@ -34,7 +34,23 @@ Seul le MJ actif écrit ; sur un autre client, ces fonctions ne font rien.
 | `isAutoName(nom)` | `true` pour un libellé automatique (défaut SWADE ou généré) |
 | `computeGroupUpdates(groupe, meneur, iconeParDefaut)` | `{ name?, img? }` à écrire ; `meneur` = `{ name, images: [...] }` ou `null` |
 | `computeTurnChange(idsOrdonnes, tourActuel, idCible, idRepli?)` | `{ turn, direction }` à appliquer, ou `null` si rien à changer (1.2.0) |
+| `computePaletteShift({ rect, viewport, rightLimit?, margin?, topMargin? })` | `{ dx, dy }` en px écran pour garder le panneau des états à l'écran (1.3.0) |
 
 ## Écritures
 
 Les écritures du module passent l'option d'update `"swade-tweaks.write": true` ; ses propres hooks les ignorent.
+
+## Réglages d'affichage (1.3.0)
+
+Réglages **client** (chaque joueur choisit), cochés par défaut. Chaque correction CSS pose une classe sur `<body>`.
+
+| Clé | Classe sur `<body>` | Condition |
+|---|---|---|
+| `fixMldHeight` | `swade-tweaks--mld-height` | Monk's Little Details actif |
+| `fixMldNames` | `swade-tweaks--mld-names` | Monk's Little Details actif |
+| `fixMldHighlight` | `swade-tweaks--mld-highlight` | Monk's Little Details actif |
+| `fixStatusColors` | `swade-tweaks--status-colors` | — |
+| `fixTrackerOpacity` | `swade-tweaks--tracker-opacity` | — |
+| `fixPaletteClamp` | (aucune : recalage en JS) | — |
+
+Le recalage n'écrit que la propriété CSS `translate` du panneau des états ; aucune donnée de monde n'est modifiée.

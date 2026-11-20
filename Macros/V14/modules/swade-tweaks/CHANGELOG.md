@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.3.0
+
+### Ajouté
+- Corrections d'affichage des icônes d'état, chacune activable **par joueur** (réglages client, cochés par défaut) :
+  - **Avec Monk's Little Details** (réglages masqués si le module est inactif) :
+    - HUD des états : cadre à la hauteur du contenu (les dernières lignes ne débordent plus sous le cadre) ;
+    - HUD des états : noms lisibles (pleine opacité, sombres en thème clair) ;
+    - HUD des états : icônes nettes, état actif en case orange et nom en gras, sans filtre sépia.
+  - **Dans tous les cas** :
+    - icônes d'état aux couleurs d'origine en thème clair, HUD et suivi de combat (le crâne blanc de Foundry reste inversé) ;
+    - suivi de combat : icônes d'état opaques (plus de voile à 30 %) ;
+    - HUD des états toujours dans l'écran : décalé s'il dépasse en bas, à droite (barre latérale comprise), à gauche ou en haut.
+- Cocher ou décocher un réglage prend effet immédiatement, sans recharger.
+- Règles pures `rules/hud-clamp.js` et `rules/hud-fixes.js`, service `services/hud-fixes.js`, tests Node et lot Quench « SWADE Tweaks : affichage ».
+- API : `rules.computePaletteShift`.
+
 ## 1.2.1
 
 ### Corrigé

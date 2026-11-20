@@ -6,13 +6,14 @@
 export const DEFAULT_ICON = "icons/environment/people/charge.webp";
 
 /** Installe game, foundry, CONFIG, Hooks sur globalThis ; renvoie le journal des hooks */
-export function installFoundryStubs({ isGM = true } = {}) {
+export function installFoundryStubs({ isGM = true, activeModules = [] } = {}) {
   const hooks = { on: [], once: [], callAll: [] };
 
   globalThis.Hooks = {
     on: (name, fn) => hooks.on.push({ name, fn }),
     once: (name, fn) => hooks.once.push({ name, fn }),
-    callAll: (name, ...args) => hooks.callAll.push({ name, args })
+    callAll: (name, ...args) => hooks.callAll.push({ name, args }),
+    off: () => {}
   };
 
   globalThis.foundry = {
@@ -31,15 +32,56 @@ export function installFoundryStubs({ isGM = true } = {}) {
 
   globalThis.CONFIG = { SWADE: { combat: { group: { icon: DEFAULT_ICON } } } };
 
-  const modules = new Map([["swade-tweaks", { id: "swade-tweaks" }]]);
+  const modules = new Map([["swade-tweaks", { id: "swade-tweaks", active: true }]]);
+  for (const id of activeModules) modules.set(id, { id, active: true });
+
+  // Réglages : register enregistre la définition, get/set lisent et écrivent la valeur
+  const registered = new Map();
+  const values = new Map();
+  const settings = {
+    registered,
+    register(ns, key, def) { registered.set(`${ns}.${key}`, def); values.set(`${ns}.${key}`, def.default); },
+    get(ns, key) { return values.get(`${ns}.${key}`); },
+    async set(ns, key, value) {
+      values.set(`${ns}.${key}`, value);
+      registered.get(`${ns}.${key}`)?.onChange?.(value);
+      return value;
+    }
+  };
+
   globalThis.game = {
     user: { isGM },
     users: { activeGM: { isSelf: isGM } },
     modules,
+    settings,
     combats: []
   };
 
+  globalThis.document = makeDocument();
+
   return hooks;
+}
+
+/** document factice : body.classList et getElementById */
+export function makeDocument({ elements = {} } = {}) {
+  const classes = new Set();
+  return {
+    body: {
+      classList: {
+        add: (...c) => c.forEach((x) => classes.add(x)),
+        remove: (...c) => c.forEach((x) => classes.delete(x)),
+        toggle: (c, force) => {
+          const on = force ?? !classes.has(c);
+          if (on) classes.add(c); else classes.delete(c);
+          return on;
+        },
+        contains: (c) => classes.has(c)
+      },
+      classes
+    },
+    getElementById: (id) => elements[id] ?? null,
+    querySelector: () => null
+  };
 }
 
 /** Combattant factice */

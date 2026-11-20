@@ -5,12 +5,14 @@
 import { MODULE_ID, VERSION, WRITE_FLAG } from "./constants.js";
 import { syncGroup, syncAllGroups, groupOf, groupsToSyncForCombatant } from "./services/groups.js";
 import { addMenuEntry, patchTrackerMenus } from "./services/turns.js";
+import { registerHudSettings, refreshHudFixes, stopPaletteClamp } from "./services/hud-fixes.js";
 import { buildApi } from "./api.js";
 
 const COMBATANT_FIELDS = ["group", "name", "img"];
 
 Hooks.once("init", () => {
   console.log(`${MODULE_ID} | v${VERSION}`);
+  registerHudSettings();
 });
 
 // Création d'un groupe (le meneur peut ne pas être encore rangé : rattrapé par createCombatant)
@@ -50,6 +52,13 @@ Hooks.once("ready", () => {
   game.modules.get(MODULE_ID).api = api;
   Hooks.callAll(`${MODULE_ID}.ready`, api);
   syncAllGroups();
+  refreshHudFixes();
+});
+
+// Le HUD peut être recréé avec le canevas (changement de scène)
+Hooks.on("canvasReady", () => {
+  stopPaletteClamp();
+  refreshHudFixes();
 });
 
 // Tests d'intégration, chargés seulement si Quench est actif
@@ -57,5 +66,7 @@ Hooks.on("quenchReady", async (quench) => {
   const { registerQuenchTests } = await import("../tests/quench/groups.quench.js");
   const { registerTurnQuenchTests } = await import("../tests/quench/turns.quench.js");
   registerQuenchTests(quench);
+  const { registerHudQuenchTests } = await import("../tests/quench/hud.quench.js");
   registerTurnQuenchTests(quench);
+  registerHudQuenchTests(quench);
 });
